@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="云计算技术应用学习工作台 - 技能树、项目实战、学习资源、个人简历">
+    <title>云计算学习工作台</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 自定义背景层 -->
+    <div class="bg-layer" id="bgLayer">
+        <video id="bgVideo" class="bg-video" loop muted playsinline></video>
+    </div>
+
+    <!-- 顶部导航 -->
+    <header class="navbar">
+        <div class="nav-container">
+            <a href="#home" class="logo">☁️ 云计算学习工作台</a>
+            <div class="nav-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="切换主题">🌙</button>
+                <button class="theme-toggle" id="settingsToggle" aria-label="背景设置">⚙️</button>
+                <button class="menu-toggle" id="menuToggle" aria-label="菜单">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+            <nav class="nav-menu" id="navMenu">
+                <a href="#skills">技能树</a>
+                <a href="#roadmap">学习路线</a>
+                <a href="#projects">项目实战</a>
+                <a href="#resources">学习资源</a>
+                <a href="#interview">面试题</a>
+                <a href="#about">关于我</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 首页 Hero -->
+    <section id="home" class="hero">
+        <div class="hero-content">
+            <h1>云计算技术应用 · 学习工作台</h1>
+            <p class="hero-subtitle">记录学习路径 · 沉淀项目经验 · 沉淀求职作品集</p>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-num" id="skillCount">0</span>
+                    <span class="stat-label">技能项</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-num" id="progressAvg">0%</span>
+                    <span class="stat-label">平均掌握度</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-num" id="projectCount">0</span>
+                    <span class="stat-label">项目数</span>
+                </div>
+            </div>
+            <a href="#skills" class="btn-primary">开始学习 →</a>
+        </div>
+    </section>
+
+    <!-- 技能树板块 -->
+    <section id="skills" class="section">
+        <div class="container">
+            <h2 class="section-title">技能树</h2>
+            <p class="section-desc">点击技能卡片可记录学习笔记和掌握进度,数据自动保存在浏览器本地。</p>
+            <div class="skill-categories" id="skillCategories">
+                <!-- 由 JS 动态生成 -->
+            </div>
+        </div>
+    </section>
+
+    <!-- 学习路线图板块 -->
+    <section id="roadmap" class="section section-alt">
+        <div class="container">
+            <h2 class="section-title">学习路线图</h2>
+            <p class="section-desc">从零基础到就业的阶段性学习路径,点击阶段卡片可展开查看详细目标。</p>
+            <div class="roadmap-timeline" id="roadmapTimeline">
+                <!-- 由 JS 动态生成 -->
+            </div>
+        </div>
+    </section>
+
+    <!-- 项目实战板块 -->
+    <section id="projects" class="section">
+        <div class="container">
+            <h2 class="section-title">项目实战</h2>
+            <p class="section-desc">沉淀动手实践过的项目,作为求职作品集展示。</p>
+            <div class="project-grid" id="projectGrid">
+                <!-- 由 JS 动态生成 -->
+            </div>
+        </div>
+    </section>
+
+    <!-- 学习资源板块 -->
+    <section id="resources" class="section section-alt">
+        <div class="container">
+            <h2 class="section-title">学习资源导航</h2>
+            <p class="section-desc">分类收藏优质学习资料,持续更新。</p>
+            <div class="resource-tabs" id="resourceTabs">
+                <!-- 由 JS 动态生成分类标签 -->
+            </div>
+            <div class="resource-list" id="resourceList">
+                <!-- 由 JS 动态生成 -->
+            </div>
+        </div>
+    </section>
+
+    <!-- 面试题板块 -->
+    <section id="interview" class="section">
+        <div class="container">
+            <h2 class="section-title">面试题库</h2>
+            <p class="section-desc">云计算高频面试题,点击题目展开查看答案。助力求职准备。</p>
+            <div class="interview-tabs" id="interviewTabs">
+                <!-- 由 JS 动态生成分类 -->
+            </div>
+            <div class="interview-list" id="interviewList">
+                <!-- 由 JS 动态生成 -->
+            </div>
+        </div>
+    </section>
+
+    <!-- 关于我板块 -->
+    <section id="about" class="section section-alt">
+        <div class="container">
+            <h2 class="section-title">关于我</h2>
+            <div class="about-grid">
+                <div class="about-card">
+                    <div class="avatar">👤</div>
+                    <h3 id="resumeName">罗宇</h3>
+                    <p class="about-role" id="resumeRole">云计算技术应用专业 · 在校生 / 求职实习</p>
+                    <p class="about-desc" id="resumeDesc">聚焦公有云运维方向(阿里云 / 腾讯云),踏实动手,目标毕业后扎根珠三角,1-2 年内成长为公有云高级运维 / 云架构实施工程师,稳定月薪 12-18k。</p>
+                    <div class="contact-info">
+                        <p>📧 邮箱:<span id="resumeEmail">227003310@qq.com</span></p>
+                        <p>🐙 GitHub:<a href="https://github.com/Zzy-six" target="_blank" rel="noopener" id="resumeGithub">Zzy-six</a></p>
+                    </div>
+                </div>
+                <div class="about-card">
+                    <h3>教育背景</h3>
+                    <ul class="resume-list" id="eduList">
+                        <li>2024 - 2027 · 广东碧桂园职业学院 · 云计算技术应用专业(2027 年 6 月毕业)</li>
+                    </ul>
+                    <h3>技能证书</h3>
+                    <ul class="resume-list" id="certList">
+                        <li>CSDN C1 / C2 / C4 认证(已获)</li>
+                        <li>阿里云 ACA 云计算助理工程师(备考中)</li>
+                    </ul>
+                    <h3>求职意向</h3>
+                    <ul class="resume-list" id="jobList">
+                        <li>实习方向:云运维实习生 / 云实施助理 / 阿里云代理商技术支持 / 容器运维助理</li>
+                        <li>投递区域:东莞松山湖 · 广州白云 IT 服务商 · 云渠道代理商</li>
+                        <li>发展路径:实习 → 毕业 1-2 年:公有云高级运维 / 云架构实施 / 政企数通工程师</li>
+                        <li>目标薪资:12-18k(珠三角常态)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 笔记编辑弹窗 -->
+    <div class="modal" id="noteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">技能笔记</h3>
+                <button class="modal-close" id="modalClose">×</button>
+            </div>
+            <div class="modal-body">
+                <label>掌握进度</label>
+                <div class="progress-control">
+                    <input type="range" id="progressRange" min="0" max="100" value="0">
+                    <span id="progressValue">0%</span>
+                </div>
+                <label>学习笔记</label>
+                <textarea id="noteText" placeholder="记录你的学习心得、关键命令、踩过的坑..." rows="8"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="noteCancel">取消</button>
+                <button class="btn-primary" id="noteSave">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 背景设置弹窗 -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>背景设置</h3>
+                <button class="modal-close" id="settingsClose">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-tab="bg">背景</button>
+                    <button class="settings-tab" data-tab="glass">玻璃质感</button>
+                    <button class="settings-tab" data-tab="appearance">外观</button>
+                </div>
+
+                <div class="tab-pane active" id="tab-bg">
+                    <label>预设背景</label>
+                    <div class="bg-presets" id="bgPresets">
+                        <!-- 由 JS 动态生成 -->
+                    </div>
+
+                    <label>自定义背景(图片 / 动图 / 视频)</label>
+                    <div class="bg-upload-area">
+                        <input type="file" id="bgFileInput" accept="image/*,video/*" hidden>
+                        <button class="btn-secondary" id="bgUploadBtn">📁 选择文件</button>
+                        <button class="btn-secondary" id="bgResetBtn">↺ 恢复默认</button>
+                    </div>
+                    <p class="bg-tip">支持 JPG/PNG/GIF 动图/MP4 视频,本地处理保存,不上传服务器。GIF 保留动画,视频建议横屏短片段。</p>
+
+                    <label>背景透明度</label>
+                    <div class="progress-control">
+                        <input type="range" id="bgOpacity" min="0" max="100" value="30">
+                        <span id="bgOpacityValue">30%</span>
+                    </div>
+                    <p class="bg-tip">数值越大背景越清晰,内容会自动半透明以保证可读性。</p>
+
+                    <label>动效速率(视频帧率)</label>
+                    <div class="bg-upload-area">
+                        <select id="bgFrameRate" class="bg-select">
+                            <option value="0.5">0.5x 慢速(省电)</option>
+                            <option value="1" selected>1x 正常</option>
+                            <option value="1.5">1.5x 快速</option>
+                            <option value="2">2x 极速</option>
+                        </select>
+                    </div>
+                    <p class="bg-tip">仅对视频背景生效,控制播放速率。动图 GIF 按原始帧率播放。</p>
+                </div>
+
+                <div class="tab-pane" id="tab-glass">
+                    <label>界面玻璃透明度</label>
+                    <div class="progress-control">
+                        <input type="range" id="uiOpacity" min="10" max="100" value="85">
+                        <span id="uiOpacityValue">85%</span>
+                    </div>
+                    <p class="bg-tip">控制卡片、面板等 UI 元素的背景透明度。</p>
+
+                    <label>Hero 区域透明度</label>
+                    <div class="progress-control">
+                        <input type="range" id="heroOpacity" min="10" max="100" value="85">
+                        <span id="heroOpacityValue">85%</span>
+                    </div>
+                    <p class="bg-tip">控制首页蓝色 Hero 区域的玻璃透明度。</p>
+
+                    <label>背景模糊强度</label>
+                    <div class="progress-control">
+                        <input type="range" id="uiBlur" min="0" max="30" value="10">
+                        <span id="uiBlurValue">10px</span>
+                    </div>
+                    <p class="bg-tip">数值越大,背景透过玻璃越模糊。</p>
+
+                    <label>玻璃边框颜色</label>
+                    <div class="bg-upload-area">
+                        <input type="color" id="uiBorderColor" value="#ffffff" class="bg-color-input">
+                        <input type="range" id="uiBorderOpacity" min="0" max="100" value="30">
+                        <span id="uiBorderOpacityValue">30%</span>
+                    </div>
+                    <p class="bg-tip">玻璃边缘的高光描边颜色和强度,增强质感。</p>
+                </div>
+
+                <div class="tab-pane" id="tab-appearance">
+                    <label>全局字体大小</label>
+                    <div class="progress-control">
+                        <input type="range" id="fontSize" min="12" max="20" value="15">
+                        <span id="fontSizeValue">15px</span>
+                    </div>
+                    <p class="bg-tip">调整全站基础字号,标题和卡片会随之缩放。</p>
+
+                    <label>字体样式</label>
+                    <div class="bg-upload-area">
+                        <select id="fontFamily" class="bg-select">
+                            <option value="system">系统默认</option>
+                            <option value="sans-serif">无衬线体</option>
+                            <option value="serif">衬线体</option>
+                            <option value="monospace">等宽字体</option>
+                            <option value="'PingFang SC', 'Microsoft YaHei'">苹方/雅黑</option>
+                        </select>
+                    </div>
+
+                    <label>字体颜色</label>
+                    <div class="bg-upload-area">
+                        <input type="color" id="textColor" value="#1e293b" class="bg-color-input">
+                        <span id="textColorValue">#1e293b</span>
+                    </div>
+                    <p class="bg-tip">控制全站文字颜色,包括卡片内容、说明文字等。</p>
+
+                    <label>主题色</label>
+                    <div class="bg-upload-area">
+                        <input type="color" id="accentColor" value="#2563eb" class="bg-color-input">
+                        <span id="accentColorValue">#2563eb</span>
+                    </div>
+                    <p class="bg-tip">控制按钮、链接、强调文字、下划线的颜色。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 返回顶部按钮 -->
+    <button class="back-to-top" id="backToTop" aria-label="返回顶部">↑</button>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <p>© 2026 云计算学习工作台 · 持续学习,持续成长</p>
+            <p class="footer-tip">提示:学习进度和笔记保存在浏览器本地,清除浏览器数据会丢失。</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
