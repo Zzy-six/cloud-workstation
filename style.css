@@ -820,6 +820,212 @@ body.dark .nav-menu.active {
     background: rgba(37, 99, 235, 0.05);
 }
 
+/* ===== 证书图片样式 ===== */
+.cert-item {
+    position: relative;
+}
+
+.cert-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.cert-thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+    background: var(--glass-bg);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.cert-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.cert-thumb:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.cert-zoom {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    font-size: 10px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cert-empty {
+    font-size: 20px;
+    color: var(--text-secondary);
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* 编辑模式下证书缩略图 */
+body.edit-mode .cert-thumb {
+    cursor: pointer;
+}
+
+body.edit-mode .cert-thumb:hover {
+    outline: 2px solid var(--primary);
+}
+
+/* 图片上传区域 */
+.image-upload-field {
+    margin-top: 16px;
+}
+
+.image-upload-area {
+    width: 100%;
+    min-height: 120px;
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    background: var(--glass-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    overflow: hidden;
+    position: relative;
+}
+
+.image-upload-area:hover {
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.upload-placeholder {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.upload-preview {
+    max-width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.upload-success {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: #10b981;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.upload-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    opacity: 0.7;
+}
+
+/* 图片预览弹窗 */
+.image-preview-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    animation: fadeIn 0.2s ease;
+}
+
+.image-preview-modal {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.image-preview-close {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.image-preview-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.image-preview-img {
+    max-width: 90vw;
+    max-height: 80vh;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    object-fit: contain;
+}
+
+.image-preview-caption {
+    color: white;
+    margin-top: 16px;
+    font-size: 14px;
+    opacity: 0.8;
+    text-align: center;
+}
+
+/* 移动端证书图片适配 */
+@media (max-width: 480px) {
+    .cert-thumb {
+        width: 40px;
+        height: 40px;
+    }
+
+    .image-preview-close {
+        top: -50px;
+        right: 50%;
+        transform: translateX(50%);
+    }
+
+    .image-preview-close:hover {
+        transform: translateX(50%) scale(1.1);
+    }
+}
+
 /* ===== 关于我卡片 - 编辑模式内联编辑 ===== */
 body.edit-mode .editable-field {
     cursor: pointer !important;
