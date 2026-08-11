@@ -1,5 +1,5 @@
 // ===== 版本号 =====
-const APP_VERSION = "2.2.0";
+const APP_VERSION = "2.3.0";
 const APP_VERSION_KEY = "cloud_workstation_version";
 
 // ===== 数据:技能树(云计算方向) =====
@@ -347,6 +347,7 @@ function getResources() { return editableResources || resourceData; }
 
 // ===== 关于我默认数据 =====
 const DEFAULT_ABOUT = {
+    avatar: "👤",
     name: "你的名字",
     role: "你的专业 · 在校生 / 求职实习",
     desc: "在这里写下你的个人简介,比如你的学习方向、职业目标、技能特长等。所有人默认看到的是这个模板,点击 ✏️ 编辑即可修改为你自己的信息。",
@@ -671,18 +672,98 @@ function editAbout() {
 
 function renderAbout() {
     const about = getAbout() || DEFAULT_ABOUT;
-    document.getElementById("resumeName").textContent = about.name;
-    document.getElementById("resumeRole").textContent = about.role;
-    document.getElementById("resumeDesc").textContent = about.desc;
-    document.getElementById("resumeEmail").textContent = about.email;
+    
+    const nameEl = document.getElementById("resumeName");
+    const roleEl = document.getElementById("resumeRole");
+    const descEl = document.getElementById("resumeDesc");
+    const emailEl = document.getElementById("resumeEmail");
     const ghLink = document.getElementById("resumeGithub");
+    const avatarEl = document.querySelector("#about .avatar");
+
+    nameEl.textContent = about.name;
+    roleEl.textContent = about.role;
+    descEl.textContent = about.desc;
+    emailEl.textContent = about.email;
     ghLink.textContent = about.github;
     ghLink.href = `https://github.com/${about.github}`;
+
+    // 头像显示
+    avatarEl.textContent = about.avatar || "👤";
+
+    if (editMode) {
+        // 编辑模式：给每个元素添加内联编辑
+        makeInlineEditable(nameEl, "name", "姓名");
+        makeInlineEditable(roleEl, "role", "职位/身份");
+        makeInlineEditable(descEl, "desc", "个人简介", true);
+        makeInlineEditable(emailEl, "email", "邮箱");
+        makeInlineEditable(ghLink, "github", "GitHub 用户名");
+        
+        // 头像编辑
+        if (avatarEl && !avatarEl.querySelector(".avatar-edit-btn")) {
+            const editBtn = document.createElement("button");
+            editBtn.className = "avatar-edit-btn";
+            editBtn.title = "点击更换头像";
+            editBtn.textContent = "✏️";
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                openEditModal("更换头像", [
+                    { key: "avatar", label: "输入 emoji 或文字", value: about.avatar || "👤" },
+                ], (values) => {
+                    const currentAbout = getAbout() || DEFAULT_ABOUT;
+                    currentAbout.avatar = values.avatar;
+                    editableAbout = { ...currentAbout };
+                    saveEditableData("about", editableAbout);
+                    renderAbout();
+                    showToast("头像已更新");
+                });
+            };
+            avatarEl.appendChild(editBtn);
+            avatarEl.style.cursor = "pointer";
+        }
+    } else {
+        // 正常模式：移除编辑相关
+        [nameEl, roleEl, descEl, emailEl, ghLink].forEach(el => {
+            el.style.cursor = "";
+            el.onclick = null;
+            el.classList.remove("editable-field");
+        });
+        if (avatarEl) {
+            avatarEl.style.cursor = "";
+            const btn = avatarEl.querySelector(".avatar-edit-btn");
+            if (btn) btn.remove();
+        }
+    }
 
     // 渲染列表（支持编辑模式）
     renderResumeList("eduList", about.edu, "edu");
     renderResumeList("certList", about.certs, "certs");
     renderResumeList("jobList", about.jobs, "jobs");
+}
+
+// ===== 内联编辑元素 =====
+function makeInlineEditable(el, field, label, isTextarea = false) {
+    if (!el) return;
+    el.style.cursor = "pointer";
+    el.classList.add("editable-field");
+    
+    // 移除旧事件
+    el.onclick = null;
+    
+    el.onclick = () => {
+        const currentAbout = getAbout() || DEFAULT_ABOUT;
+        const currentValue = currentAbout[field] || el.textContent;
+        
+        openEditModal(`编辑${label}`, [
+            { key: "value", label: label, type: isTextarea ? "textarea" : "text", value: currentValue },
+        ], (values) => {
+            const about = getAbout() || { ...DEFAULT_ABOUT };
+            about[field] = values.value;
+            editableAbout = { ...about };
+            saveEditableData("about", editableAbout);
+            renderAbout();
+            showToast(`${label}已更新`);
+        });
+    };
 }
 
 // ===== 渲染简历列表（支持编辑/删除/添加）=====
