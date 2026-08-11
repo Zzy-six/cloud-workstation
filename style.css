@@ -1730,3 +1730,219 @@ body.touch-device .resource-item.touch-active::after {
 .backup-tips strong {
     color: var(--primary);
 }
+
+// ===== 编辑模式样式 =====
+.edit-mode-btn {
+    font-size: 12px !important;
+    padding: 6px 10px !important;
+}
+
+.edit-mode-btn.active {
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    color: white !important;
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+}
+
+body.edit-mode .project-card,
+body.edit-mode .skill-category,
+body.edit-mode .roadmap-stage,
+body.edit-mode .interview-item,
+body.edit-mode .resource-item,
+body.edit-mode .about-card {
+    position: relative;
+    outline: 2px dashed rgba(245, 158, 11, 0.5);
+    outline-offset: 2px;
+}
+
+body.edit-mode .project-card::before,
+body.edit-mode .skill-category::before,
+body.edit-mode .roadmap-stage::before,
+body.edit-mode .interview-item::before,
+body.edit-mode .resource-item::before,
+body.edit-mode .about-card::before {
+    content: "可编辑";
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    background: #f59e0b;
+    color: white;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    z-index: 10;
+}
+
+.edit-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: #f59e0b;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body.edit-mode .project-card:hover .edit-btn,
+body.edit-mode .skill-category:hover .edit-btn,
+body.edit-mode .roadmap-stage:hover .edit-btn,
+body.edit-mode .interview-item:hover .edit-btn,
+body.edit-mode .resource-item:hover .edit-btn,
+body.edit-mode .about-card:hover .edit-btn {
+    opacity: 1;
+}
+
+.edit-btn:hover {
+    transform: scale(1.2);
+    background: #d97706;
+}
+
+.edit-btn.add-btn {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    opacity: 1;
+    margin: 20px auto;
+    display: block;
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+}
+
+.edit-btn.add-btn:hover {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+}
+
+// ===== 编辑弹窗样式 =====
+.modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.modal-footer .btn-secondary {
+    padding: 8px 20px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.modal-footer .btn-primary {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: white;
+    cursor: pointer;
+}
+
+.modal-footer .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+}
+
+.edit-field {
+    margin-bottom: 16px;
+}
+
+.edit-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.edit-field input[type="text"],
+.edit-field textarea,
+.edit-field select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--glass-bg);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.edit-field input[type="text"]:focus,
+.edit-field textarea:focus,
+.edit-field select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.edit-field textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.edit-field ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 8px;
+}
+
+.edit-field ul li {
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    background: var(--glass-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: text;
+    font-size: 14px;
+}
+
+.edit-field ul li:focus {
+    outline: 2px solid var(--primary);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.edit-add-item {
+    padding: 6px 12px;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    width: 100%;
+}
+
+.edit-add-item:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+// ===== 版本徽章 =====
+.version-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    margin-left: 8px;
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+// ===== 编辑模式下的 about section =====
+#about {
+    position: relative;
+}
