@@ -1,5 +1,5 @@
 // ===== 版本号 =====
-const APP_VERSION = "2.6.2";
+const APP_VERSION = "2.7.0";
 const APP_VERSION_KEY = "cloud_workstation_version";
 const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000; // 5分钟检查一次
 const LAST_UPDATE_CHECK_KEY = "cloud_workstation_last_check";
