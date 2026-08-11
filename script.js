@@ -1,6 +1,8 @@
 // ===== 版本号 =====
-const APP_VERSION = "2.3.0";
+const APP_VERSION = "2.3.1";
 const APP_VERSION_KEY = "cloud_workstation_version";
+const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000; // 5分钟检查一次
+const LAST_UPDATE_CHECK_KEY = "cloud_workstation_last_check";
 
 // ===== 数据:技能树(云计算方向) =====
 const skillData = [
@@ -2002,7 +2004,145 @@ document.addEventListener("DOMContentLoaded", () => {
     initAppearanceSettings();
     initDataBackup();
     applyAppearance();
+
+    // 初始化自动更新检测
+    initAutoUpdate();
+
+    // 初始化版本显示
+    initVersionDisplay();
 });
+
+// ===== 自动更新检测 =====
+function initAutoUpdate() {
+    // 页面加载后延迟3秒检查（避免影响首屏性能）
+    setTimeout(() => {
+        checkForUpdate();
+    }, 3000);
+
+    // 定时检查（每5分钟）
+    setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL);
+
+    // 页面可见性变化时检查（用户切回页面时）
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            checkForUpdate();
+        }
+    });
+
+    // 网络恢复时检查
+    window.addEventListener("online", () => {
+        checkForUpdate();
+    });
+}
+
+async function checkForUpdate() {
+    try {
+        // 缓存buster参数，避免浏览器缓存version.json
+        const timestamp = Date.now();
+        const response = await fetch(`version.json?t=${timestamp}`, {
+            cache: "no-store",
+            headers: {
+                "Cache-Control": "no-cache",
+            },
+        });
+
+        if (!response.ok) return;
+
+        const remoteVersion = await response.json();
+        const localVersion = APP_VERSION;
+
+        // 比较版本
+        if (remoteVersion.version !== localVersion) {
+            console.log(`[自动更新] 发现新版本: ${remoteVersion.version} (当前: ${localVersion})`);
+            showUpdateNotification(remoteVersion);
+        }
+
+        // 更新最后检查时间
+        localStorage.setItem(LAST_UPDATE_CHECK_KEY, Date.now().toString());
+    } catch (e) {
+        console.log("[自动更新] 检查失败（可能是离线状态）");
+    }
+}
+
+function showUpdateNotification(remoteVersion) {
+    // 检查是否已显示过
+    const notifiedKey = "cloud_workstation_notified_version";
+    if (localStorage.getItem(notifiedKey) === remoteVersion.version) {
+        return; // 已通知过这个版本
+    }
+
+    const isForceUpdate = remoteVersion.forceUpdate;
+
+    // 创建更新提示弹窗
+    const overlay = document.createElement("div");
+    overlay.className = "update-overlay";
+    overlay.innerHTML = `
+        <div class="update-modal">
+            <div class="update-icon">🚀</div>
+            <h2>发现新版本 v${remoteVersion.version}</h2>
+            <div class="update-content">
+                <p class="update-desc">${isForceUpdate ? "这是一个重要更新，建议立即刷新！" : "有新版本可用，点击刷新获取最新功能。"}</p>
+                <div class="update-changelog">
+                    <strong>更新日志:</strong>
+                    <ul>
+                        ${remoteVersion.changelog.slice(0, 3).map(log => `<li>${log}</li>`).join("")}
+                    </ul>
+                </div>
+            </div>
+            <div class="update-actions">
+                <button class="update-btn update-later" id="updateLater" ${isForceUpdate ? "hidden" : ""}>稍后再说</button>
+                <button class="update-btn update-now" id="updateNow">
+                    ${isForceUpdate ? "立即更新" : "立即刷新"}
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // 绑定事件
+    const updateNow = overlay.querySelector("#updateNow");
+    const updateLater = overlay.querySelector("#updateLater");
+
+    updateNow.addEventListener("click", () => {
+        // 清除缓存并刷新
+        if ("caches" in window) {
+            caches.keys().then(keys => {
+                keys.forEach(key => caches.delete(key));
+            });
+        }
+        localStorage.setItem(notifiedKey, remoteVersion.version);
+        // 强制刷新（绕过缓存）
+        window.location.reload(true);
+    });
+
+    if (updateLater) {
+        updateLater.addEventListener("click", () => {
+            localStorage.setItem(notifiedKey, remoteVersion.version);
+            overlay.remove();
+        });
+    }
+}
+
+// ===== 版本检查UI：显示在页脚 =====
+function initVersionDisplay() {
+    const versionEl = document.getElementById("appVersion");
+    if (!versionEl) return;
+
+    // 显示当前版本
+    versionEl.textContent = `v${APP_VERSION}`;
+
+    // 点击版本号手动检查更新
+    versionEl.style.cursor = "pointer";
+    versionEl.title = "点击检查更新";
+    versionEl.addEventListener("click", async () => {
+        versionEl.textContent = "检查中...";
+        await checkForUpdate();
+        setTimeout(() => {
+            versionEl.textContent = `v${APP_VERSION}`;
+            showToast("已是最新版本" + (APP_VERSION ? ` v${APP_VERSION}` : ""));
+        }, 500);
+    });
+}
 
 // ===== 数据备份 UI 绑定 =====
 function initDataBackup() {
