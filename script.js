@@ -1,5 +1,5 @@
 // ===== 版本号 =====
-const APP_VERSION = "2.1.0";
+const APP_VERSION = "2.2.0";
 const APP_VERSION_KEY = "cloud_workstation_version";
 
 // ===== 数据:技能树(云计算方向) =====
@@ -385,10 +385,18 @@ function updateEditModeUI() {
     document.body.classList.toggle("edit-mode", editMode);
     const toggle = document.getElementById("editModeToggle");
     if (toggle) {
-        toggle.textContent = editMode ? "✅ 完成编辑" : "✏️ 编辑模式";
+        const btnText = toggle.querySelector(".btn-text");
+        const btnIcon = toggle.querySelector(".btn-icon");
+        if (btnText) {
+            btnText.textContent = editMode ? "完成编辑" : "编辑模式";
+        }
+        if (btnIcon) {
+            btnIcon.textContent = editMode ? "✅" : "✏️";
+        }
         toggle.classList.toggle("active", editMode);
     }
     renderEditButtons();
+    renderAbout(); // 更新简历列表的编辑状态
 }
 
 function renderEditButtons() {
@@ -671,9 +679,94 @@ function renderAbout() {
     ghLink.textContent = about.github;
     ghLink.href = `https://github.com/${about.github}`;
 
-    document.getElementById("eduList").innerHTML = about.edu.map((e) => `<li>${e}</li>`).join("");
-    document.getElementById("certList").innerHTML = about.certs.map((e) => `<li>${e}</li>`).join("");
-    document.getElementById("jobList").innerHTML = about.jobs.map((e) => `<li>${e}</li>`).join("");
+    // 渲染列表（支持编辑模式）
+    renderResumeList("eduList", about.edu, "edu");
+    renderResumeList("certList", about.certs, "certs");
+    renderResumeList("jobList", about.jobs, "jobs");
+}
+
+// ===== 渲染简历列表（支持编辑/删除/添加）=====
+function renderResumeList(listId, items, key) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+
+    if (editMode) {
+        // 编辑模式：渲染带操作按钮的列表
+        list.innerHTML = items.map((item, idx) => `
+            <li class="editable-list-item" data-key="${key}" data-idx="${idx}">
+                <span class="item-text">${escapeHtml(item)}</span>
+                <div class="item-actions">
+                    <button class="item-btn edit-item-btn" onclick="editResumeItem('${key}', ${idx})" title="编辑">✏️</button>
+                    <button class="item-btn delete-item-btn" onclick="deleteResumeItem('${key}', ${idx})" title="删除">🗑️</button>
+                </div>
+            </li>
+        `).join("");
+
+        // 添加"新增"按钮
+        const existingAddBtn = list.parentElement.querySelector(`.add-list-btn[data-key="${key}"]`);
+        if (!existingAddBtn) {
+            const addBtn = document.createElement("button");
+            addBtn.className = "add-list-btn";
+            addBtn.dataset.key = key;
+            addBtn.textContent = "➕ 添加新条目";
+            addBtn.onclick = () => addResumeItem(key);
+            list.parentElement.appendChild(addBtn);
+        }
+    } else {
+        // 正常模式：普通列表
+        list.innerHTML = items.map((e) => `<li>${e}</li>`).join("");
+        // 移除添加按钮
+        const addBtn = list.parentElement.querySelector(`.add-list-btn[data-key="${key}"]`);
+        if (addBtn) addBtn.remove();
+    }
+}
+
+// ===== 编辑简历单条条目 =====
+function editResumeItem(key, idx) {
+    const about = getAbout() || { ...DEFAULT_ABOUT };
+    const item = about[key][idx];
+
+    openEditModal("编辑条目", [
+        { key: "text", label: "内容", type: "textarea", value: item },
+    ], (values) => {
+        about[key][idx] = values.text;
+        editableAbout = { ...about };
+        saveEditableData("about", editableAbout);
+        renderAbout();
+        showToast("已更新");
+    });
+}
+
+// ===== 删除简历单条条目 =====
+function deleteResumeItem(key, idx) {
+    const about = getAbout() || { ...DEFAULT_ABOUT };
+    if (!confirm("确定删除该条目吗？")) return;
+    about[key].splice(idx, 1);
+    editableAbout = { ...about };
+    saveEditableData("about", editableAbout);
+    renderAbout();
+    showToast("已删除");
+}
+
+// ===== 添加简历新条目 =====
+function addResumeItem(key) {
+    const about = getAbout() || { ...DEFAULT_ABOUT };
+    openEditModal("添加新条目", [
+        { key: "text", label: "内容", type: "textarea", value: "" },
+    ], (values) => {
+        about[key].push(values.text);
+        editableAbout = { ...about };
+        saveEditableData("about", editableAbout);
+        renderAbout();
+        showToast("已添加");
+    });
+}
+
+// HTML 转义
+function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
 }
 
 // ===== 编辑:技能分类 =====
