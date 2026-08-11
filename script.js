@@ -1,5 +1,5 @@
 // ===== 版本号 =====
-const APP_VERSION = "2.3.1";
+const APP_VERSION = "2.3.2";
 const APP_VERSION_KEY = "cloud_workstation_version";
 const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000; // 5分钟检查一次
 const LAST_UPDATE_CHECK_KEY = "cloud_workstation_last_check";
@@ -2013,54 +2013,206 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ===== 自动更新检测 =====
+const UPDATE_CONFIG = {
+    maxRetries: 3,
+    retryDelayBase: 2000,      // 2s, 4s, 8s 指数退避
+    timeoutMs: 10000,           // 单次请求超时
+    offlineCheckInterval: 30000 // 离线时每30秒重试
+};
+
+let isOffline = false;
+let offlineRetryTimer = null;
+let retryCount = 0;
+
 function initAutoUpdate() {
+    // 初始网络状态检测
+    isOffline = !navigator.onLine;
+    
+    if (isOffline) {
+        showOfflineBanner();
+    }
+
     // 页面加载后延迟3秒检查（避免影响首屏性能）
     setTimeout(() => {
         checkForUpdate();
     }, 3000);
 
     // 定时检查（每5分钟）
-    setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL);
+    setInterval(() => {
+        if (!isOffline) {
+            retryCount = 0;
+            checkForUpdate();
+        }
+    }, UPDATE_CHECK_INTERVAL);
 
-    // 页面可见性变化时检查（用户切回页面时）
+    // 页面可见性变化时检查
     document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") {
+        if (document.visibilityState === "visible" && !isOffline) {
+            retryCount = 0;
             checkForUpdate();
         }
     });
 
-    // 网络恢复时检查
+    // 网络上线事件 - 恢复后立即检查
     window.addEventListener("online", () => {
+        isOffline = false;
+        hideOfflineBanner();
+        retryCount = 0;
+        console.log("[自动更新] 网络已恢复，开始检查更新...");
         checkForUpdate();
     });
+
+    // 网络下线事件 - 显示离线提示
+    window.addEventListener("offline", () => {
+        isOffline = true;
+        showOfflineBanner();
+    });
+
+    // 在线状态变化检测（用于移动端浏览器兼容性）
+    setInterval(() => {
+        const nowOnline = navigator.onLine;
+        if (nowOnline !== isOffline) {
+            isOffline = !nowOnline;
+            if (isOffline) {
+                showOfflineBanner();
+            } else {
+                hideOfflineBanner();
+                retryCount = 0;
+                checkForUpdate();
+            }
+        }
+    }, 5000);
+}
+
+// 带重试的 fetch 请求（指数退避）
+async function fetchWithRetry(url, options = {}, retries = UPDATE_CONFIG.maxRetries) {
+    let lastError;
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            // 添加超时控制
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), UPDATE_CONFIG.timeoutMs);
+            
+            const response = await fetch(url, {
+                ...options,
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            return response;
+            
+        } catch (error) {
+            lastError = error;
+            
+            // 如果是超时或网络错误，进行重试
+            if (error.name === 'AbortError' || error.message?.includes('Failed to fetch')) {
+                if (attempt < retries) {
+                    const delay = UPDATE_CONFIG.retryDelayBase * Math.pow(2, attempt);
+                    console.log(`[自动更新] 请求失败，${delay/1000}秒后重试 (${attempt + 1}/${retries})`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            } else {
+                // 其他错误直接抛出
+                throw error;
+            }
+        }
+    }
+    
+    throw lastError;
 }
 
 async function checkForUpdate() {
-    try {
-        // 缓存buster参数，避免浏览器缓存version.json
-        const timestamp = Date.now();
-        const response = await fetch(`version.json?t=${timestamp}`, {
-            cache: "no-store",
-            headers: {
-                "Cache-Control": "no-cache",
-            },
-        });
+    // 离线时不检查，改为等待网络恢复
+    if (isOffline) {
+        console.log("[自动更新] 当前离线，等待网络恢复后检查");
+        return;
+    }
 
-        if (!response.ok) return;
+    try {
+        const timestamp = Date.now();
+        const response = await fetchWithRetry(
+            `version.json?t=${timestamp}`,
+            {
+                cache: "no-store",
+                headers: {
+                    "Cache-Control": "no-cache",
+                },
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
 
         const remoteVersion = await response.json();
         const localVersion = APP_VERSION;
+
+        // 重置重试计数
+        retryCount = 0;
 
         // 比较版本
         if (remoteVersion.version !== localVersion) {
             console.log(`[自动更新] 发现新版本: ${remoteVersion.version} (当前: ${localVersion})`);
             showUpdateNotification(remoteVersion);
+        } else {
+            console.log(`[自动更新] 当前已是最新版本 v${localVersion}`);
         }
 
         // 更新最后检查时间
         localStorage.setItem(LAST_UPDATE_CHECK_KEY, Date.now().toString());
+        
     } catch (e) {
-        console.log("[自动更新] 检查失败（可能是离线状态）");
+        retryCount++;
+        console.warn(`[自动更新] 检查失败 (第${retryCount}次):`, e.message);
+        
+        if (retryCount >= UPDATE_CONFIG.maxRetries) {
+            console.log("[自动更新] 已达最大重试次数，显示离线提示");
+            isOffline = true;
+            showOfflineBanner();
+        }
+    }
+}
+
+// 显示离线/弱网提示横幅
+function showOfflineBanner() {
+    let banner = document.getElementById("offlineBanner");
+    if (banner) {
+        banner.style.display = "flex";
+        return;
+    }
+
+    banner = document.createElement("div");
+    banner.id = "offlineBanner";
+    banner.className = "offline-banner";
+    banner.innerHTML = `
+        <div class="offline-content">
+            <span class="offline-icon">📡</span>
+            <span class="offline-text">网络不稳定，已切换到离线模式</span>
+            <span class="offline-sub">内容已缓存，网络恢复后将自动更新</span>
+        </div>
+        <button class="offline-retry" id="offlineRetry">立即重试</button>
+    `;
+    document.body.appendChild(banner);
+
+    const retryBtn = banner.querySelector("#offlineRetry");
+    retryBtn.addEventListener("click", async () => {
+        retryBtn.textContent = "检查中...";
+        retryBtn.disabled = true;
+        retryCount = 0;
+        await checkForUpdate();
+        if (!isOffline) {
+            hideOfflineBanner();
+        }
+        retryBtn.textContent = "立即重试";
+        retryBtn.disabled = false;
+    });
+}
+
+function hideOfflineBanner() {
+    const banner = document.getElementById("offlineBanner");
+    if (banner) {
+        banner.style.display = "none";
     }
 }
 
