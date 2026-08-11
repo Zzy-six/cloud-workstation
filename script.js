@@ -1,3 +1,7 @@
+// ===== 版本号 =====
+const APP_VERSION = "2.0.0";
+const APP_VERSION_KEY = "cloud_workstation_version";
+
 // ===== 数据:技能树(云计算方向) =====
 const skillData = [
     {
@@ -174,7 +178,8 @@ function migrateData() {
 // ===== 数据备份/恢复功能 =====
 function exportData() {
     const data = {
-        version: DATA_VERSION,
+        version: APP_VERSION,
+        dataVersion: DATA_VERSION,
         exportDate: new Date().toISOString(),
         localStorage: {},
     };
@@ -186,6 +191,13 @@ function exportData() {
         "cloud_workstation_bg",
         "cloud_workstation_appearance",
         "cloud_workstation_data_version",
+        "cloud_workstation_edit_mode",
+        "cloud_workstation_projects",
+        "cloud_workstation_skills",
+        "cloud_workstation_roadmap",
+        "cloud_workstation_interview",
+        "cloud_workstation_about",
+        "cloud_workstation_resources",
     ];
     keys.forEach((key) => {
         data.localStorage[key] = localStorage.getItem(key);
@@ -274,6 +286,402 @@ function showToast(message, type = "success") {
     setTimeout(() => toast.remove(), 2500);
 }
 
+// ===== 可编辑数据系统 =====
+const EDIT_DATA_KEYS = {
+    projects: "cloud_workstation_projects",
+    skills: "cloud_workstation_skills",
+    roadmap: "cloud_workstation_roadmap",
+    interview: "cloud_workstation_interview",
+    about: "cloud_workstation_about",
+    resources: "cloud_workstation_resources",
+};
+
+let editMode = localStorage.getItem("cloud_workstation_edit_mode") === "1";
+
+function loadEditableData(key, defaultVal) {
+    try {
+        const saved = localStorage.getItem(EDIT_DATA_KEYS[key]);
+        if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return defaultVal;
+}
+
+function saveEditableData(key, data) {
+    localStorage.setItem(EDIT_DATA_KEYS[key], JSON.stringify(data));
+}
+
+// 加载用户自定义数据(覆盖默认数据)
+let editableProjects = loadEditableData("projects", null);
+let editableSkills = loadEditableData("skills", null);
+let editableRoadmap = loadEditableData("roadmap", null);
+let editableInterview = loadEditableData("interview", null);
+let editableAbout = loadEditableData("about", null);
+let editableResources = loadEditableData("resources", null);
+
+// 获取实际使用的数据(用户修改过则用修改后的)
+function getProjects() { return editableProjects || projectData; }
+function getSkills() { return editableSkills || skillData; }
+function getRoadmap() { return editableRoadmap || roadmapData; }
+function getInterview() { return editableInterview || interviewData; }
+function getAbout() { return editableAbout || null; }
+function getResources() { return editableResources || resourceData; }
+
+// ===== 关于我默认数据 =====
+const DEFAULT_ABOUT = {
+    name: "罗宇",
+    role: "云计算技术应用专业 · 在校生 / 求职实习",
+    desc: "聚焦公有云运维方向(阿里云 / 腾讯云),踏实动手,目标毕业后扎根珠三角,1-2 年内成长为公有云高级运维 / 云架构实施工程师,稳定月薪 12-18k。",
+    email: "227003310@qq.com",
+    github: "Zzy-six",
+    edu: ["2024 - 2027 · 广东碧桂园职业学院 · 云计算技术应用专业(2027 年 6 月毕业)"],
+    certs: ["CSDN C1 / C2 / C4 认证(已获)", "阿里云 ACA 云计算助理工程师(备考中)"],
+    jobs: [
+        "实习方向:云运维实习生 / 云实施助理 / 阿里云代理商技术支持 / 容器运维助理",
+        "投递区域:东莞松山湖 · 广州白云 IT 服务商 · 云渠道代理商",
+        "发展路径:实习 → 毕业 1-2 年:公有云高级运维 / 云架构实施 / 政企数通工程师",
+        "目标薪资:12-18k(珠三角常态)",
+    ],
+};
+
+// ===== 编辑模式 UI =====
+function initEditMode() {
+    const toggle = document.getElementById("editModeToggle");
+    if (!toggle) return;
+
+    updateEditModeUI();
+
+    toggle.addEventListener("click", () => {
+        editMode = !editMode;
+        localStorage.setItem("cloud_workstation_edit_mode", editMode ? "1" : "0");
+        updateEditModeUI();
+        showToast(editMode ? "已进入编辑模式,点击任意内容修改" : "已退出编辑模式");
+    });
+
+    // 添加版本号
+    const versionEl = document.getElementById("appVersion");
+    if (versionEl) versionEl.textContent = `v${APP_VERSION}`;
+}
+
+function updateEditModeUI() {
+    document.body.classList.toggle("edit-mode", editMode);
+    const toggle = document.getElementById("editModeToggle");
+    if (toggle) {
+        toggle.textContent = editMode ? "✅ 完成编辑" : "✏️ 编辑模式";
+        toggle.classList.toggle("active", editMode);
+    }
+    renderEditButtons();
+}
+
+function renderEditButtons() {
+    // 移除旧的编辑按钮
+    document.querySelectorAll(".edit-btn").forEach((el) => el.remove());
+
+    if (!editMode) return;
+
+    const editBtn = (text, onClick) => {
+        const btn = document.createElement("button");
+        btn.className = "edit-btn";
+        btn.textContent = text;
+        btn.onclick = onClick;
+        return btn;
+    };
+
+    // 项目卡片编辑
+    document.querySelectorAll(".project-card").forEach((card, idx) => {
+        const btn = editBtn("✏️", () => editProject(idx));
+        card.appendChild(btn);
+    });
+
+    // 关于我编辑
+    const aboutSection = document.getElementById("about");
+    if (aboutSection && !aboutSection.querySelector(".edit-btn")) {
+        const btn = editBtn("✏️ 编辑简历", editAbout);
+        btn.style.position = "absolute";
+        btn.style.top = "20px";
+        btn.style.right = "20px";
+        aboutSection.style.position = "relative";
+        aboutSection.appendChild(btn);
+    }
+
+    // 技能树编辑
+    document.querySelectorAll(".skill-category").forEach((cat, idx) => {
+        const btn = editBtn("✏️", () => editSkillCategory(idx));
+        cat.appendChild(btn);
+    });
+
+    // 路线图编辑
+    document.querySelectorAll(".roadmap-stage").forEach((stage, idx) => {
+        const btn = editBtn("✏️", () => editRoadmapStage(idx));
+        stage.appendChild(btn);
+    });
+
+    // 面试题编辑
+    document.querySelectorAll(".interview-item").forEach((item, idx) => {
+        const btn = editBtn("✏️", () => editInterviewItem(idx));
+        item.appendChild(btn);
+    });
+
+    // 资源编辑
+    document.querySelectorAll(".resource-item").forEach((item, idx) => {
+        const btn = editBtn("✏️", () => editResourceItem(idx));
+        item.appendChild(btn);
+    });
+
+    // 添加新项目按钮
+    const projectGrid = document.getElementById("projectGrid");
+    if (projectGrid && !document.getElementById("addProjectBtn")) {
+        const addBtn = document.createElement("button");
+        addBtn.id = "addProjectBtn";
+        addBtn.className = "edit-btn add-btn";
+        addBtn.textContent = "➕ 添加新项目";
+        addBtn.onclick = () => editProject(-1);
+        projectGrid.parentElement.appendChild(addBtn);
+    }
+}
+
+// ===== 编辑弹窗 =====
+function openEditModal(title, fields, onSave) {
+    const modal = document.createElement("div");
+    modal.className = "modal active";
+    modal.id = "editModal";
+
+    let fieldsHTML = fields.map((f, i) => {
+        if (f.type === "textarea") {
+            return `<div class="edit-field"><label>${f.label}</label><textarea data-field="${i}" rows="4">${f.value || ""}</textarea></div>`;
+        }
+        if (f.type === "tags") {
+            return `<div class="edit-field"><label>${f.label}(逗号分隔)</label><input type="text" data-field="${i}" value="${(f.value || []).join(", ")}"></div>`;
+        }
+        if (f.type === "list") {
+            const items = (f.value || []).map((v) => `<li contenteditable="true" data-list="${i}">${v}</li>`).join("");
+            return `<div class="edit-field"><label>${f.label}</label><ul data-list-container="${i}">${items}</ul><button type="button" class="edit-add-item" data-list-add="${i}">➕ 添加</button></div>`;
+        }
+        if (f.type === "select") {
+            const options = f.options.map((o) => `<option value="${o}" ${o === f.value ? "selected" : ""}>${o}</option>`).join("");
+            return `<div class="edit-field"><label>${f.label}</label><select data-field="${i}">${options}</select></div>`;
+        }
+        return `<div class="edit-field"><label>${f.label}</label><input type="text" data-field="${i}" value="${f.value || ""}"></div>`;
+    }).join("");
+
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>${title}</h3>
+                <button class="modal-close" data-close>×</button>
+            </div>
+            <div class="modal-body">
+                ${fieldsHTML}
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" data-cancel>取消</button>
+                <button class="btn-primary" data-save>保存</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const close = () => modal.remove();
+    modal.querySelectorAll("[data-close], [data-cancel]").forEach((el) => el.onclick = close);
+    modal.onclick = (e) => { if (e.target === modal) close(); };
+
+    modal.querySelector("[data-save]").onclick = () => {
+        const values = {};
+        fields.forEach((f, i) => {
+            const el = modal.querySelector(`[data-field="${i}"]`);
+            if (f.type === "tags") {
+                values[f.key] = el.value.split(/[,，]/).map((s) => s.trim()).filter(Boolean);
+            } else if (f.type === "list") {
+                const items = modal.querySelectorAll(`[data-list="${i}"]`);
+                values[f.key] = Array.from(items).map((li) => li.textContent).filter(Boolean);
+            } else {
+                values[f.key] = el ? el.value : "";
+            }
+        });
+
+        // 收集列表字段
+        modal.querySelectorAll("[data-list-container]").forEach((container) => {
+            const idx = container.dataset.listContainer;
+            const key = fields[parseInt(idx)].key;
+            const items = container.querySelectorAll("li");
+            values[key] = Array.from(items).map((li) => li.textContent).filter(Boolean);
+        });
+
+        onSave(values);
+        close();
+    };
+
+    // 列表添加按钮
+    modal.querySelectorAll("[data-list-add]").forEach((btn) => {
+        btn.onclick = () => {
+            const idx = btn.dataset.listAdd;
+            const container = btn.parentElement.querySelector(`[data-list-container="${idx}"]`);
+            const li = document.createElement("li");
+            li.contentEditable = "true";
+            li.textContent = "新条目";
+            container.appendChild(li);
+        };
+    });
+}
+
+// ===== 编辑:项目 =====
+function editProject(idx) {
+    const projects = getProjects();
+    const isNew = idx < 0;
+    const project = isNew ? { icon: "📦", title: "", desc: "", tags: [], status: "规划中", link: "" } : projects[idx];
+
+    openEditModal(isNew ? "添加新项目" : "编辑项目", [
+        { key: "icon", label: "图标(emoji)", value: project.icon },
+        { key: "title", label: "项目标题", value: project.title },
+        { key: "desc", label: "项目描述", type: "textarea", value: project.desc },
+        { key: "tags", label: "标签", type: "tags", value: project.tags },
+        { key: "status", label: "状态", type: "select", options: ["规划中", "进行中", "已完成"], value: project.status },
+        { key: "link", label: "链接(GitHub等)", value: project.link },
+    ], (values) => {
+        if (isNew) {
+            projects.push(values);
+        } else {
+            projects[idx] = { ...project, ...values };
+        }
+        editableProjects = projects;
+        saveEditableData("projects", projects);
+        renderProjects();
+        updateStats();
+        showToast(isNew ? "项目已添加" : "项目已更新");
+    });
+}
+
+// ===== 编辑:关于我 =====
+function editAbout() {
+    const about = getAbout() || DEFAULT_ABOUT;
+
+    openEditModal("编辑简历信息", [
+        { key: "name", label: "姓名", value: about.name },
+        { key: "role", label: "职位/身份", value: about.role },
+        { key: "email", label: "邮箱", value: about.email },
+        { key: "github", label: "GitHub 用户名", value: about.github },
+        { key: "desc", label: "个人简介", type: "textarea", value: about.desc },
+        { key: "edu", label: "教育背景", type: "list", value: about.edu },
+        { key: "certs", label: "技能证书", type: "list", value: about.certs },
+        { key: "jobs", label: "求职意向", type: "list", value: about.jobs },
+    ], (values) => {
+        editableAbout = { ...about, ...values };
+        saveEditableData("about", editableAbout);
+        renderAbout();
+        showToast("简历已更新");
+    });
+}
+
+function renderAbout() {
+    const about = getAbout() || DEFAULT_ABOUT;
+    document.getElementById("resumeName").textContent = about.name;
+    document.getElementById("resumeRole").textContent = about.role;
+    document.getElementById("resumeDesc").textContent = about.desc;
+    document.getElementById("resumeEmail").textContent = about.email;
+    const ghLink = document.getElementById("resumeGithub");
+    ghLink.textContent = about.github;
+    ghLink.href = `https://github.com/${about.github}`;
+
+    document.getElementById("eduList").innerHTML = about.edu.map((e) => `<li>${e}</li>`).join("");
+    document.getElementById("certList").innerHTML = about.certs.map((e) => `<li>${e}</li>`).join("");
+    document.getElementById("jobList").innerHTML = about.jobs.map((e) => `<li>${e}</li>`).join("");
+}
+
+// ===== 编辑:技能分类 =====
+function editSkillCategory(idx) {
+    const skills = getSkills();
+    const cat = skills[idx];
+
+    openEditModal(`编辑分类: ${cat.category}`, [
+        { key: "category", label: "分类名称", value: cat.category },
+        { key: "icon", label: "图标(emoji)", value: cat.icon },
+    ], (values) => {
+        skills[idx] = { ...cat, ...values };
+        editableSkills = skills;
+        saveEditableData("skills", skills);
+        renderSkills();
+        showToast("技能分类已更新");
+    });
+}
+
+// ===== 编辑:路线图 =====
+function editRoadmapStage(idx) {
+    const roadmap = getRoadmap();
+    const stage = roadmap[idx];
+
+    openEditModal(`编辑阶段: ${stage.title}`, [
+        { key: "title", label: "阶段标题", value: stage.title },
+        { key: "goal", label: "阶段目标", type: "textarea", value: stage.goal },
+        { key: "duration", label: "时间描述", value: stage.duration },
+        { key: "topics", label: "学习内容", type: "list", value: stage.topics },
+    ], (values) => {
+        roadmap[idx] = { ...stage, ...values };
+        editableRoadmap = roadmap;
+        saveEditableData("roadmap", roadmap);
+        renderRoadmap();
+        showToast("路线图已更新");
+    });
+}
+
+// ===== 编辑:面试题 =====
+function editInterviewItem(idx) {
+    const interviews = getInterview();
+    let found = null;
+    let catName = null;
+    let itemIdx = -1;
+    for (const [cat, items] of Object.entries(interviews)) {
+        const item = items[idx];
+        if (item) {
+            found = item;
+            catName = cat;
+            itemIdx = idx;
+            break;
+        }
+    }
+    if (!found) return;
+
+    openEditModal("编辑面试题", [
+        { key: "q", label: "问题", type: "textarea", value: found.q },
+        { key: "a", label: "答案", type: "textarea", value: found.a },
+    ], (values) => {
+        interviews[catName][itemIdx] = { ...found, ...values };
+        editableInterview = interviews;
+        saveEditableData("interview", interviews);
+        renderInterviewList();
+        showToast("面试题已更新");
+    });
+}
+
+// ===== 编辑:学习资源 =====
+function editResourceItem(idx) {
+    const resources = getResources();
+    let found = null;
+    let catName = null;
+    let itemIdx = -1;
+    for (const [cat, items] of Object.entries(resources)) {
+        const item = items[idx];
+        if (item) {
+            found = item;
+            catName = cat;
+            itemIdx = idx;
+            break;
+        }
+    }
+    if (!found) return;
+
+    openEditModal("编辑学习资源", [
+        { key: "title", label: "标题", value: found.title },
+        { key: "url", label: "链接URL", value: found.url },
+        { key: "desc", label: "描述", value: found.desc },
+    ], (values) => {
+        resources[catName][itemIdx] = { ...found, ...values };
+        editableResources = resources;
+        saveEditableData("resources", resources);
+        renderResourceList();
+        showToast("资源已更新");
+    });
+}
+
 // ===== 本地存储工具 =====
 const STORAGE_KEY = "cloud_workstation_notes";
 
@@ -295,7 +703,7 @@ let currentSkillKey = null;
 // ===== 渲染技能树 =====
 function renderSkills() {
     const container = document.getElementById("skillCategories");
-    container.innerHTML = skillData
+    container.innerHTML = getSkills()
         .map(
             (cat) => `
         <div class="skill-category">
@@ -332,7 +740,7 @@ function renderSkills() {
 // ===== 渲染项目实战 =====
 function renderProjects() {
     const container = document.getElementById("projectGrid");
-    container.innerHTML = projectData
+    container.innerHTML = getProjects()
         .map(
             (p) => `
         <div class="project-card">
@@ -379,7 +787,7 @@ function renderResourceTabs() {
 }
 
 function renderResourceList() {
-    const list = resourceData[currentResourceTab] || [];
+    const list = getResources()[currentResourceTab] || [];
     const container = document.getElementById("resourceList");
     container.innerHTML = list
         .map(
@@ -574,7 +982,7 @@ const interviewData = {
 // ===== 渲染学习路线图 =====
 function renderRoadmap() {
     const container = document.getElementById("roadmapTimeline");
-    container.innerHTML = roadmapData
+    container.innerHTML = getRoadmap()
         .map(
             (stage) => `
         <div class="roadmap-stage" data-stage="${stage.title}">
@@ -622,7 +1030,7 @@ function renderInterviewTabs() {
 }
 
 function renderInterviewList() {
-    const list = interviewData[currentInterviewTab] || [];
+    const list = getInterview()[currentInterviewTab] || [];
     const container = document.getElementById("interviewList");
     container.innerHTML = list
         .map(
@@ -1226,6 +1634,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderResourceList();
     renderInterviewTabs();
     renderInterviewList();
+    renderAbout();
     updateStats();
     initMenu();
     initModal();
@@ -1233,6 +1642,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initBackToTop();
     initAdvancedUI();
     initTouchFeedback();
+    initEditMode();
     applyBackgroundMedia();
     applyOpacity();
     initBackgroundSettings();
