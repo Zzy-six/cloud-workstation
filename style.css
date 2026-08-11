@@ -747,6 +747,86 @@ body.dark .nav-menu.active {
     text-decoration: underline;
 }
 
+/* ===== 关于我卡片 - 编辑模式内联编辑 ===== */
+body.edit-mode .editable-field {
+    cursor: pointer !important;
+    transition: all 0.2s ease;
+    border-radius: 6px;
+    padding: 2px 6px;
+    margin: -2px -6px;
+    position: relative;
+}
+
+body.edit-mode .editable-field:hover {
+    background: rgba(245, 158, 11, 0.12);
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3);
+    transform: scale(1.02);
+}
+
+body.edit-mode .editable-field::after {
+    content: " ✏️";
+    opacity: 0;
+    transition: opacity 0.2s;
+    font-size: 0.8em;
+}
+
+body.edit-mode .editable-field:hover::after {
+    opacity: 1;
+}
+
+body.edit-mode .about-card h3.editable-field,
+body.edit-mode .about-card .about-role.editable-field {
+    display: inline-block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+body.edit-mode .contact-info .editable-field {
+    display: inline-block;
+}
+
+/* 头像编辑按钮 */
+.avatar {
+    position: relative;
+}
+
+.avatar-edit-btn {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border: 2px solid white;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+body.edit-mode .avatar:hover .avatar-edit-btn,
+.avatar-edit-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5);
+}
+
+body.edit-mode .avatar {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+body.edit-mode .avatar:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+}
+
 .resume-list {
     list-style: none;
     padding: 0;
