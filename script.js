@@ -1,5 +1,5 @@
 // ===== 版本号 =====
-const APP_VERSION = "2.6.0";
+const APP_VERSION = "2.6.1";
 const APP_VERSION_KEY = "cloud_workstation_version";
 const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000; // 5分钟检查一次
 const LAST_UPDATE_CHECK_KEY = "cloud_workstation_last_check";
@@ -718,8 +718,15 @@ function renderAbout() {
     // 渲染联系字段
     renderContacts(contactsContainer, about.contacts);
 
-    // 头像显示
-    avatarEl.textContent = about.avatar || "👤";
+    // 头像显示（支持 emoji 和图片）
+    const avatarData = about.avatar || "👤";
+    if (avatarData.startsWith("data:image") || avatarData.startsWith("http")) {
+        // 图片头像
+        avatarEl.innerHTML = `<img src="${avatarData}" alt="头像" class="avatar-img">`;
+    } else {
+        // emoji 头像
+        avatarEl.textContent = avatarData;
+    }
 
     if (editMode) {
         // 编辑模式：给每个元素添加内联编辑
@@ -735,16 +742,7 @@ function renderAbout() {
             editBtn.textContent = "✏️";
             editBtn.onclick = (e) => {
                 e.stopPropagation();
-                openEditModal("更换头像", [
-                    { key: "avatar", label: "输入 emoji 或文字", value: about.avatar || "👤" },
-                ], (values) => {
-                    const currentAbout = getAbout() || DEFAULT_ABOUT;
-                    currentAbout.avatar = values.avatar;
-                    editableAbout = { ...currentAbout };
-                    saveEditableData("about", editableAbout);
-                    renderAbout();
-                    showToast("头像已更新");
-                });
+                openAvatarEditor(about);
             };
             avatarEl.appendChild(editBtn);
             avatarEl.style.cursor = "pointer";
@@ -779,6 +777,145 @@ function renderAbout() {
     renderResumeList("eduList", about.edu, "edu");
     renderCertList("certList", about.certs);
     renderResumeList("jobList", about.jobs, "jobs");
+}
+
+// ===== 头像编辑器 =====
+function openAvatarEditor(about) {
+    const currentAvatar = about.avatar || "👤";
+    const isImage = currentAvatar.startsWith("data:image") || currentAvatar.startsWith("http");
+    
+    const modal = document.createElement("div");
+    modal.className = "modal avatar-editor-modal";
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>更换头像</h3>
+                <button class="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- 当前头像预览 -->
+                <div class="avatar-current">
+                    <div class="avatar-preview" id="avatarPreview">
+                        ${isImage 
+                            ? `<img src="${currentAvatar}" alt="当前头像">` 
+                            : `<span>${escapeHtml(currentAvatar)}</span>`
+                        }
+                    </div>
+                    <p class="avatar-hint">当前头像预览</p>
+                </div>
+                
+                <!-- 上传图片区域 -->
+                <div class="avatar-upload-section">
+                    <label>上传图片</label>
+                    <div class="avatar-upload-actions">
+                        <button type="button" class="upload-action-btn" id="avatarCameraBtn">
+                            📸 拍照
+                        </button>
+                        <button type="button" class="upload-action-btn" id="avatarFileBtn">
+                            🖼️ 选择图片
+                        </button>
+                        <input type="file" accept="image/*" capture="environment" id="avatarCameraInput" hidden>
+                        <input type="file" accept="image/*" id="avatarFileInput" hidden>
+                    </div>
+                    <p class="upload-hint">支持 JPG/PNG,建议不超过 2MB</p>
+                </div>
+                
+                <!-- 或使用 emoji -->
+                <div class="avatar-emoji-section">
+                    <label>或使用 emoji</label>
+                    <input type="text" id="avatarEmojiInput" placeholder="输入 emoji,如:👤😎🤓" value="${isImage ? '' : escapeHtml(currentAvatar)}" maxlength="10">
+                    <div class="emoji-quick-pick">
+                        <button type="button" class="emoji-btn" data-emoji="👤">👤</button>
+                        <button type="button" class="emoji-btn" data-emoji="😎">😎</button>
+                        <button type="button" class="emoji-btn" data-emoji="🤓">🤓</button>
+                        <button type="button" class="emoji-btn" data-emoji="🧑‍💻">🧑‍💻</button>
+                        <button type="button" class="emoji-btn" data-emoji="👨‍🎓">👨‍🎓</button>
+                        <button type="button" class="emoji-btn" data-emoji="👩‍🎓">👩‍🎓</button>
+                        <button type="button" class="emoji-btn" data-emoji="🚀">🚀</button>
+                        <button type="button" class="emoji-btn" data-emoji="⭐">⭐</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="avatarCancel">取消</button>
+                <button class="btn btn-primary" id="avatarSave" disabled>保存</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const close = () => modal.remove();
+    modal.querySelector(".modal-close").onclick = close;
+    modal.querySelector("#avatarCancel").onclick = close;
+    modal.onclick = (e) => { if (e.target === modal) close(); };
+    
+    const preview = modal.querySelector("#avatarPreview");
+    const saveBtn = modal.querySelector("#avatarSave");
+    let newAvatar = null;
+    
+    const updatePreview = (html, canSave) => {
+        preview.innerHTML = html;
+        saveBtn.disabled = !canSave;
+    };
+    
+    // 处理图片上传
+    const handleFile = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        if (file.size > 2 * 1024 * 1024) {
+            showToast("图片太大,请选择不超过 2MB 的图片");
+            return;
+        }
+        
+        try {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                newAvatar = event.target.result;
+                updatePreview(`<img src="${newAvatar}" alt="预览">`, true);
+                showToast("图片上传成功");
+            };
+            reader.readAsDataURL(file);
+        } catch (err) {
+            showToast("图片上传失败");
+        }
+    };
+    
+    modal.querySelector("#avatarCameraBtn").onclick = () => modal.querySelector("#avatarCameraInput").click();
+    modal.querySelector("#avatarFileBtn").onclick = () => modal.querySelector("#avatarFileInput").click();
+    modal.querySelector("#avatarCameraInput").onchange = handleFile;
+    modal.querySelector("#avatarFileInput").onchange = handleFile;
+    
+    // emoji 快捷选择
+    const emojiInput = modal.querySelector("#avatarEmojiInput");
+    modal.querySelectorAll(".emoji-btn").forEach(btn => {
+        btn.onclick = () => {
+            const emoji = btn.dataset.emoji;
+            emojiInput.value = emoji;
+            newAvatar = emoji;
+            updatePreview(`<span>${escapeHtml(emoji)}</span>`, true);
+        };
+    });
+    
+    emojiInput.oninput = () => {
+        const val = emojiInput.value.trim();
+        if (val) {
+            newAvatar = val;
+            updatePreview(`<span>${escapeHtml(val)}</span>`, true);
+        }
+    };
+    
+    // 保存
+    saveBtn.onclick = () => {
+        if (!newAvatar) return;
+        const currentAbout = getAbout() || { ...DEFAULT_ABOUT };
+        currentAbout.avatar = newAvatar;
+        editableAbout = { ...currentAbout };
+        saveEditableData("about", editableAbout);
+        close();
+        renderAbout();
+        showToast("头像已更新");
+    };
 }
 
 // ===== 渲染联系字段 =====
