@@ -140,6 +140,140 @@ const resourceData = {
     ],
 };
 
+// ===== 数据版本控制(防止更新时数据丢失) =====
+const DATA_VERSION = 1;
+const DATA_VERSION_KEY = "cloud_workstation_data_version";
+
+// 数据迁移函数:升级旧版本数据结构
+function migrateData() {
+    const currentVersion = parseInt(localStorage.getItem(DATA_VERSION_KEY) || "0");
+
+    if (currentVersion === DATA_VERSION) return;
+
+    console.log(`[数据迁移] 版本 ${currentVersion} → ${DATA_VERSION}`);
+
+    // 版本 0 → 1:首次版本化,确保所有存储键存在
+    if (currentVersion < 1) {
+        const keys = [
+            "cloud_workstation_notes",
+            "cloud_workstation_theme",
+            "cloud_workstation_bg",
+            "cloud_workstation_appearance",
+        ];
+        keys.forEach((key) => {
+            if (!localStorage.getItem(key)) {
+                localStorage.setItem(key, JSON.stringify({}));
+            }
+        });
+    }
+
+    localStorage.setItem(DATA_VERSION_KEY, DATA_VERSION.toString());
+    console.log("[数据迁移] 完成");
+}
+
+// ===== 数据备份/恢复功能 =====
+function exportData() {
+    const data = {
+        version: DATA_VERSION,
+        exportDate: new Date().toISOString(),
+        localStorage: {},
+    };
+
+    // 导出所有相关 localStorage
+    const keys = [
+        "cloud_workstation_notes",
+        "cloud_workstation_theme",
+        "cloud_workstation_bg",
+        "cloud_workstation_appearance",
+        "cloud_workstation_data_version",
+    ];
+    keys.forEach((key) => {
+        data.localStorage[key] = localStorage.getItem(key);
+    });
+
+    // 导出 IndexedDB 数据(简要信息)
+    data.indexedDB = {
+        dbName: "cloud_workstation_db",
+        exportNote: "背景图片/视频等大文件存储在 IndexedDB,建议保留原浏览器",
+    };
+
+    return data;
+}
+
+function downloadBackup() {
+    const data = exportData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cloud-workstation-backup-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("备份已下载到本地");
+}
+
+function importData(jsonString) {
+    try {
+        const data = JSON.parse(jsonString);
+        if (!data.localStorage) throw new Error("无效的备份文件");
+
+        // 恢复 localStorage
+        Object.entries(data.localStorage).forEach(([key, value]) => {
+            if (value !== null) {
+                localStorage.setItem(key, value);
+            }
+        });
+
+        return true;
+    } catch (e) {
+        console.error("导入失败:", e);
+        return false;
+    }
+}
+
+function restoreBackup() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const success = importData(event.target.result);
+            if (success) {
+                showToast("备份恢复成功!即将刷新页面...");
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast("备份文件无效", "error");
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+}
+
+// Toast 提示
+function showToast(message, type = "success") {
+    const toast = document.createElement("div");
+    toast.style.cssText = `
+        position: fixed; top: 80px; left: 50%;
+        transform: translateX(-50%);
+        padding: 12px 24px;
+        background: ${type === "error" ? "#ef4444" : "#10b981"};
+        color: white; border-radius: 8px;
+        z-index: 10000; font-size: 14px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        animation: slideDown 0.3s ease;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+}
+
 // ===== 本地存储工具 =====
 const STORAGE_KEY = "cloud_workstation_notes";
 
@@ -1082,6 +1216,9 @@ function initAppearanceSettings() {
 
 // ===== 初始化 =====
 document.addEventListener("DOMContentLoaded", () => {
+    // 数据迁移(确保版本兼容)
+    migrateData();
+
     renderSkills();
     renderRoadmap();
     renderProjects();
@@ -1100,5 +1237,14 @@ document.addEventListener("DOMContentLoaded", () => {
     applyOpacity();
     initBackgroundSettings();
     initAppearanceSettings();
+    initDataBackup();
     applyAppearance();
 });
+
+// ===== 数据备份 UI 绑定 =====
+function initDataBackup() {
+    const exportBtn = document.getElementById("exportData");
+    const importBtn = document.getElementById("importData");
+    if (exportBtn) exportBtn.addEventListener("click", downloadBackup);
+    if (importBtn) importBtn.addEventListener("click", restoreBackup);
+}

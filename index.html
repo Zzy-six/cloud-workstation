@@ -191,6 +191,7 @@
                     <button class="settings-tab active" data-tab="bg">背景</button>
                     <button class="settings-tab" data-tab="glass">玻璃质感</button>
                     <button class="settings-tab" data-tab="appearance">外观</button>
+                    <button class="settings-tab" data-tab="backup">数据</button>
                 </div>
 
                 <div class="tab-pane active" id="tab-bg">
@@ -289,6 +290,28 @@
                         <span id="accentColorValue">#2563eb</span>
                     </div>
                     <p class="bg-tip">控制按钮、链接、强调文字、下划线的颜色。</p>
+                </div>
+
+                <div class="tab-pane" id="tab-backup">
+                    <div class="backup-section">
+                        <h4>💾 数据备份</h4>
+                        <p>在更新网站、清理浏览器数据或换设备前,请先导出备份。备份文件包含学习进度、笔记、主题设置等所有本地数据。</p>
+
+                        <div class="backup-buttons">
+                            <button class="backup-btn primary" id="exportData">📥 导出备份</button>
+                            <button class="backup-btn" id="importData">📤 导入恢复</button>
+                        </div>
+
+                        <div class="backup-tips">
+                            <strong>📌 安全更新指南:</strong><br>
+                            1. 更新前先点"导出备份",保存 JSON 文件<br>
+                            2. 用 Git 分支开发,测试无误再合并主分支<br>
+                            3. 不要修改 localStorage 的 key 名称<br>
+                            4. 新增功能用新函数,不要重写已有逻辑<br>
+                            5. 如需迁移数据,在 migrateData() 中添加迁移规则<br>
+                            6. 如数据丢失,用"导入恢复"还原备份
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
