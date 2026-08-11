@@ -1,5 +1,5 @@
 // ===== 版本号 =====
-const APP_VERSION = "2.5.0";
+const APP_VERSION = "2.5.1";
 const APP_VERSION_KEY = "cloud_workstation_version";
 const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000; // 5分钟检查一次
 const LAST_UPDATE_CHECK_KEY = "cloud_workstation_last_check";
@@ -1226,16 +1226,45 @@ function previewCertImage(idx) {
     preview.className = "image-preview-overlay";
     preview.innerHTML = `
         <div class="image-preview-modal">
-            <button class="image-preview-close" id="previewClose">×</button>
+            <button class="image-preview-close" id="previewClose" title="关闭 (ESC)">×</button>
             <img src="${cert.image}" alt="${escapeHtml(cert.text)}" class="image-preview-img">
-            <div class="image-preview-caption">${escapeHtml(cert.text)}</div>
+            <div class="image-preview-caption">
+                <span>${escapeHtml(cert.text)}</span>
+                <span class="preview-hint">按 ESC 或点击空白处关闭</span>
+            </div>
         </div>
     `;
     document.body.appendChild(preview);
     
-    const close = () => preview.remove();
-    preview.onclick = (e) => { if (e.target === preview) close(); };
-    preview.querySelector("#previewClose").onclick = close;
+    const close = () => {
+        preview.remove();
+        // 移除 ESC 监听
+        document.removeEventListener("keydown", handleKeydown);
+    };
+    
+    // ESC 键关闭
+    const handleKeydown = (e) => {
+        if (e.key === "Escape" || e.keyCode === 27) {
+            close();
+        }
+    };
+    document.addEventListener("keydown", handleKeydown);
+    
+    // 点击空白处关闭
+    preview.onclick = (e) => { 
+        if (e.target === preview) close(); 
+    };
+    
+    // 关闭按钮（阻止冒泡）
+    const closeBtn = preview.querySelector("#previewClose");
+    closeBtn.onclick = (e) => {
+        e.stopPropagation();
+        close();
+    };
+    
+    // 阻止图片点击冒泡
+    const img = preview.querySelector(".image-preview-img");
+    img.onclick = (e) => e.stopPropagation();
 }
 
 // HTML 转义
