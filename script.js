@@ -1,5 +1,5 @@
 // ===== 版本号 =====
-const APP_VERSION = "2.5.1";
+const APP_VERSION = "2.6.0";
 const APP_VERSION_KEY = "cloud_workstation_version";
 const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000; // 5分钟检查一次
 const LAST_UPDATE_CHECK_KEY = "cloud_workstation_last_check";
@@ -1072,7 +1072,12 @@ function editCertItem(idx) {
             <label>上传证书图片(可选)</label>
             <div class="image-upload-area" id="certImageUpload">
                 ${cert.image ? `<img src="${cert.image}" class="upload-preview" alt="预览">` : '<span class="upload-placeholder">📷 点击上传图片</span>'}
-                <input type="file" accept="image/*" id="certImageInput" hidden>
+            </div>
+            <div class="upload-actions">
+                <button type="button" class="upload-action-btn" id="uploadCameraBtn">📸 拍照</button>
+                <button type="button" class="upload-action-btn" id="uploadFileBtn">🖼️ 选择图片</button>
+                <input type="file" accept="image/*" capture="environment" id="certCameraInput" hidden>
+                <input type="file" accept="image/*" id="certFileInput" hidden>
             </div>
             <p class="upload-hint">支持 JPG/PNG,建议不超过 2MB</p>
         `;
@@ -1082,11 +1087,17 @@ function editCertItem(idx) {
             modalBody.appendChild(imageInput);
             
             const uploadArea = imageInput.querySelector("#certImageUpload");
-            const fileInput = imageInput.querySelector("#certImageInput");
+            const cameraInput = imageInput.querySelector("#certCameraInput");
+            const fileInput = imageInput.querySelector("#certFileInput");
+            const cameraBtn = imageInput.querySelector("#uploadCameraBtn");
+            const fileBtn = imageInput.querySelector("#uploadFileBtn");
             
+            // 点击上传区域
             uploadArea.onclick = () => fileInput.click();
+            cameraBtn.onclick = () => cameraInput.click();
+            fileBtn.onclick = () => fileInput.click();
             
-            fileInput.onchange = async (e) => {
+            const handleFile = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 
@@ -1116,6 +1127,9 @@ function editCertItem(idx) {
                     showToast("图片上传失败");
                 }
             };
+            
+            cameraInput.onchange = handleFile;
+            fileInput.onchange = handleFile;
         }
     }, 50);
 }
@@ -1161,7 +1175,12 @@ function addCertItem() {
             <label>上传证书图片(可选)</label>
             <div class="image-upload-area" id="certImageUpload">
                 <span class="upload-placeholder">📷 点击上传图片</span>
-                <input type="file" accept="image/*" id="certImageInput" hidden>
+            </div>
+            <div class="upload-actions">
+                <button type="button" class="upload-action-btn" id="uploadCameraBtn">📸 拍照</button>
+                <button type="button" class="upload-action-btn" id="uploadFileBtn">🖼️ 选择图片</button>
+                <input type="file" accept="image/*" capture="environment" id="certCameraInput" hidden>
+                <input type="file" accept="image/*" id="certFileInput" hidden>
             </div>
             <p class="upload-hint">支持 JPG/PNG,建议不超过 2MB</p>
         `;
@@ -1171,11 +1190,17 @@ function addCertItem() {
             modalBody.appendChild(imageInput);
             
             const uploadArea = imageInput.querySelector("#certImageUpload");
-            const fileInput = imageInput.querySelector("#certImageInput");
+            const cameraInput = imageInput.querySelector("#certCameraInput");
+            const fileInput = imageInput.querySelector("#certFileInput");
+            const cameraBtn = imageInput.querySelector("#uploadCameraBtn");
+            const fileBtn = imageInput.querySelector("#uploadFileBtn");
             
+            // 点击上传区域
             uploadArea.onclick = () => fileInput.click();
+            cameraBtn.onclick = () => cameraInput.click();
+            fileBtn.onclick = () => fileInput.click();
             
-            fileInput.onchange = async (e) => {
+            const handleFile = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 
@@ -1205,6 +1230,9 @@ function addCertItem() {
                     showToast("图片上传失败");
                 }
             };
+            
+            cameraInput.onchange = handleFile;
+            fileInput.onchange = handleFile;
         }
     }, 50);
 }
