@@ -1,5 +1,5 @@
 // ===== 版本号 =====
-const APP_VERSION = "2.3.2";
+const APP_VERSION = "2.4.0";
 const APP_VERSION_KEY = "cloud_workstation_version";
 const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000; // 5分钟检查一次
 const LAST_UPDATE_CHECK_KEY = "cloud_workstation_last_check";
@@ -353,8 +353,10 @@ const DEFAULT_ABOUT = {
     name: "你的名字",
     role: "你的专业 · 在校生 / 求职实习",
     desc: "在这里写下你的个人简介,比如你的学习方向、职业目标、技能特长等。所有人默认看到的是这个模板,点击 ✏️ 编辑即可修改为你自己的信息。",
-    email: "你的邮箱",
-    github: "你的GitHub",
+    contacts: [
+        { icon: "📧", label: "邮箱", value: "你的邮箱", type: "text" },
+        { icon: "🐙", label: "GitHub", value: "你的GitHub", type: "link", urlPrefix: "https://github.com/" },
+    ],
     edu: ["学校名称 · 专业 · 入学年份-毕业年份"],
     certs: ["已获证书1", "备考证书1"],
     jobs: [
@@ -557,7 +559,11 @@ function openEditModal(title, fields, onSave) {
             return `<div class="edit-field"><label>${f.label}</label><ul data-list-container="${i}">${items}</ul><button type="button" class="edit-add-item" data-list-add="${i}">➕ 添加</button></div>`;
         }
         if (f.type === "select") {
-            const options = f.options.map((o) => `<option value="${o}" ${o === f.value ? "selected" : ""}>${o}</option>`).join("");
+            const options = f.options.map((o) => {
+                const val = typeof o === "object" ? o.value : o;
+                const lbl = typeof o === "object" ? o.label : o;
+                return `<option value="${val}" ${val === f.value ? "selected" : ""}>${lbl}</option>`;
+            }).join("");
             return `<div class="edit-field"><label>${f.label}</label><select data-field="${i}">${options}</select></div>`;
         }
         return `<div class="edit-field"><label>${f.label}</label><input type="text" data-field="${i}" value="${f.value || ""}"></div>`;
@@ -673,21 +679,41 @@ function editAbout() {
 }
 
 function renderAbout() {
-    const about = getAbout() || DEFAULT_ABOUT;
+    let about = getAbout() || DEFAULT_ABOUT;
     
+    // 数据迁移：将旧的 email/github 字段迁移到 contacts 数组
+    if (about.email || about.github) {
+        if (!about.contacts || about.contacts.length === 0) {
+            about.contacts = [];
+            if (about.email) {
+                about.contacts.push({ icon: "📧", label: "邮箱", value: about.email, type: "text" });
+            }
+            if (about.github) {
+                about.contacts.push({ icon: "🐙", label: "GitHub", value: about.github, type: "link", urlPrefix: "https://github.com/" });
+            }
+            delete about.email;
+            delete about.github;
+            editableAbout = { ...about };
+            saveEditableData("about", editableAbout);
+        }
+    }
+    
+    if (!about.contacts || about.contacts.length === 0) {
+        about.contacts = [...DEFAULT_ABOUT.contacts];
+    }
+
     const nameEl = document.getElementById("resumeName");
     const roleEl = document.getElementById("resumeRole");
     const descEl = document.getElementById("resumeDesc");
-    const emailEl = document.getElementById("resumeEmail");
-    const ghLink = document.getElementById("resumeGithub");
+    const contactsContainer = document.getElementById("contactsContainer");
     const avatarEl = document.querySelector("#about .avatar");
 
     nameEl.textContent = about.name;
     roleEl.textContent = about.role;
     descEl.textContent = about.desc;
-    emailEl.textContent = about.email;
-    ghLink.textContent = about.github;
-    ghLink.href = `https://github.com/${about.github}`;
+
+    // 渲染联系字段
+    renderContacts(contactsContainer, about.contacts);
 
     // 头像显示
     avatarEl.textContent = about.avatar || "👤";
@@ -697,8 +723,6 @@ function renderAbout() {
         makeInlineEditable(nameEl, "name", "姓名");
         makeInlineEditable(roleEl, "role", "职位/身份");
         makeInlineEditable(descEl, "desc", "个人简介", true);
-        makeInlineEditable(emailEl, "email", "邮箱");
-        makeInlineEditable(ghLink, "github", "GitHub 用户名");
         
         // 头像编辑
         if (avatarEl && !avatarEl.querySelector(".avatar-edit-btn")) {
@@ -722,9 +746,18 @@ function renderAbout() {
             avatarEl.appendChild(editBtn);
             avatarEl.style.cursor = "pointer";
         }
+        
+        // 添加联系字段按钮
+        if (!contactsContainer.parentElement.querySelector(".add-contact-btn")) {
+            const addBtn = document.createElement("button");
+            addBtn.className = "add-contact-btn";
+            addBtn.textContent = "➕ 添加联系方式";
+            addBtn.onclick = () => addContactItem();
+            contactsContainer.parentElement.appendChild(addBtn);
+        }
     } else {
         // 正常模式：移除编辑相关
-        [nameEl, roleEl, descEl, emailEl, ghLink].forEach(el => {
+        [nameEl, roleEl, descEl].forEach(el => {
             el.style.cursor = "";
             el.onclick = null;
             el.classList.remove("editable-field");
@@ -734,12 +767,118 @@ function renderAbout() {
             const btn = avatarEl.querySelector(".avatar-edit-btn");
             if (btn) btn.remove();
         }
+        // 移除添加按钮
+        const addBtn = contactsContainer.parentElement.querySelector(".add-contact-btn");
+        if (addBtn) addBtn.remove();
     }
 
     // 渲染列表（支持编辑模式）
     renderResumeList("eduList", about.edu, "edu");
     renderResumeList("certList", about.certs, "certs");
     renderResumeList("jobList", about.jobs, "jobs");
+}
+
+// ===== 渲染联系字段 =====
+function renderContacts(container, contacts) {
+    if (!container) return;
+
+    if (editMode) {
+        container.innerHTML = contacts.map((c, idx) => `
+            <div class="contact-item editable" data-idx="${idx}">
+                <span class="contact-icon">${escapeHtml(c.icon)}</span>
+                <span class="contact-label">${escapeHtml(c.label)}:</span>
+                <span class="contact-value">${escapeHtml(c.value)}</span>
+                <div class="contact-actions">
+                    <button class="item-btn" onclick="editContactItem(${idx})" title="编辑">✏️</button>
+                    <button class="item-btn" onclick="deleteContactItem(${idx})" title="删除">🗑️</button>
+                </div>
+            </div>
+        `).join("");
+    } else {
+        container.innerHTML = contacts.map((c) => {
+            const valueHtml = c.type === "link" 
+                ? `<a href="${c.urlPrefix || ''}${escapeHtml(c.value)}" target="_blank" rel="noopener">${escapeHtml(c.value)}</a>`
+                : escapeHtml(c.value);
+            return `
+                <div class="contact-item">
+                    <span class="contact-icon">${escapeHtml(c.icon)}</span>
+                    <span class="contact-label">${escapeHtml(c.label)}:</span>
+                    <span class="contact-value">${valueHtml}</span>
+                </div>
+            `;
+        }).join("");
+    }
+}
+
+// ===== 编辑联系字段 =====
+function editContactItem(idx) {
+    const about = getAbout() || { ...DEFAULT_ABOUT };
+    const contact = about.contacts[idx];
+
+    openEditModal("编辑联系方式", [
+        { key: "icon", label: "图标(emoji)", value: contact.icon },
+        { key: "label", label: "标签(如:邮箱/电话)", value: contact.label },
+        { key: "value", label: "值", value: contact.value },
+        { key: "type", label: "类型", type: "select", value: contact.type, options: [
+            { value: "text", label: "纯文本" },
+            { value: "link", label: "链接" },
+            { value: "tel", label: "电话" },
+        ]},
+        { key: "urlPrefix", label: "链接前缀(选填)", value: contact.urlPrefix || "" },
+    ], (values) => {
+        about.contacts[idx] = {
+            icon: values.icon,
+            label: values.label,
+            value: values.value,
+            type: values.type,
+            ...(values.urlPrefix ? { urlPrefix: values.urlPrefix } : {}),
+        };
+        editableAbout = { ...about };
+        saveEditableData("about", editableAbout);
+        renderAbout();
+        showToast("联系方式已更新");
+    });
+}
+
+// ===== 删除联系字段 =====
+function deleteContactItem(idx) {
+    const about = getAbout() || { ...DEFAULT_ABOUT };
+    if (!confirm("确定删除该联系方式吗？")) return;
+    about.contacts.splice(idx, 1);
+    editableAbout = { ...about };
+    saveEditableData("about", editableAbout);
+    renderAbout();
+    showToast("已删除");
+}
+
+// ===== 添加联系字段 =====
+function addContactItem() {
+    const about = getAbout() || { ...DEFAULT_ABOUT };
+    if (!about.contacts) about.contacts = [];
+    
+    openEditModal("添加联系方式", [
+        { key: "icon", label: "图标(emoji)", value: "📱" },
+        { key: "label", label: "标签(如:电话/微信)", value: "" },
+        { key: "value", label: "值", value: "" },
+        { key: "type", label: "类型", type: "select", value: "text", options: [
+            { value: "text", label: "纯文本" },
+            { value: "link", label: "链接" },
+            { value: "tel", label: "电话" },
+        ]},
+        { key: "urlPrefix", label: "链接前缀(选填)", value: "" },
+    ], (values) => {
+        about.contacts.push({
+            icon: values.icon,
+            label: values.label,
+            value: values.value,
+            type: values.type,
+            ...(values.urlPrefix ? { urlPrefix: values.urlPrefix } : {}),
+        });
+        editableAbout = { ...about };
+        saveEditableData("about", editableAbout);
+        renderAbout();
+        showToast("已添加联系方式");
+    });
 }
 
 // ===== 内联编辑元素 =====
