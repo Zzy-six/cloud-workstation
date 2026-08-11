@@ -705,6 +705,180 @@ body.dark .nav-menu.active {
     justify-content: center;
     font-size: 2.5rem;
     margin: 0 auto 16px;
+    overflow: hidden;
+    position: relative;
+    border: 3px solid var(--primary-light);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+.avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* ===== 头像编辑器样式 ===== */
+.avatar-editor-modal .modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.avatar-current {
+    text-align: center;
+    padding: 16px;
+    background: var(--glass-bg);
+    border-radius: 12px;
+    border: 2px dashed var(--border);
+}
+
+.avatar-preview {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    margin: 0 auto 8px;
+    overflow: hidden;
+    border: 3px solid var(--primary);
+    transition: all 0.3s ease;
+}
+
+.avatar-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+.avatar-upload-section,
+.avatar-emoji-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.avatar-upload-section label,
+.avatar-emoji-section label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.avatar-upload-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.avatar-emoji-section input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--glass-bg);
+    color: var(--text);
+    font-size: 16px;
+    transition: border-color 0.2s ease;
+}
+
+.avatar-emoji-section input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.emoji-quick-pick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.emoji-btn {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--glass-bg);
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.emoji-btn:hover {
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.1);
+    transform: scale(1.1);
+}
+
+.emoji-btn:active {
+    transform: scale(0.95);
+}
+
+/* 编辑模式下的头像样式 */
+body.edit-mode .avatar {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+body.edit-mode .avatar:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
+    border-color: var(--primary);
+}
+
+.avatar-edit-btn {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border: 2px solid white;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+.avatar:hover .avatar-edit-btn {
+    opacity: 1;
+}
+
+/* 移动端头像编辑器适配 */
+@media (max-width: 768px) {
+    .avatar-preview {
+        width: 80px;
+        height: 80px;
+        font-size: 2rem;
+    }
+    
+    .avatar-upload-actions {
+        flex-direction: row;
+    }
+    
+    .emoji-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 18px;
+    }
 }
 
 .about-card .avatar + h3 {
