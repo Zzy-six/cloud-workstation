@@ -1,5 +1,5 @@
 // ===== 版本号 =====
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "2.1.0";
 const APP_VERSION_KEY = "cloud_workstation_version";
 
 // ===== 数据:技能树(云计算方向) =====
@@ -145,7 +145,7 @@ const resourceData = {
 };
 
 // ===== 数据版本控制(防止更新时数据丢失) =====
-const DATA_VERSION = 1;
+const DATA_VERSION = 2;
 const DATA_VERSION_KEY = "cloud_workstation_data_version";
 
 // 数据迁移函数:升级旧版本数据结构
@@ -167,6 +167,25 @@ function migrateData() {
         keys.forEach((key) => {
             if (!localStorage.getItem(key)) {
                 localStorage.setItem(key, JSON.stringify({}));
+            }
+        });
+    }
+
+    // 版本 1 → 2:简历默认数据改为模板占位符
+    if (currentVersion < 2) {
+        // 清除旧的编辑数据,让用户从模板开始编辑
+        const editableKeys = [
+            "cloud_workstation_about",
+            "cloud_workstation_projects",
+            "cloud_workstation_skills",
+            "cloud_workstation_roadmap",
+            "cloud_workstation_interview",
+            "cloud_workstation_resources",
+        ];
+        editableKeys.forEach((key) => {
+            if (localStorage.getItem(key)) {
+                // 保留用户之前的编辑(不要清除),只更新默认值
+                // 用户自己的编辑会被保留
             }
         });
     }
@@ -328,18 +347,18 @@ function getResources() { return editableResources || resourceData; }
 
 // ===== 关于我默认数据 =====
 const DEFAULT_ABOUT = {
-    name: "罗宇",
-    role: "云计算技术应用专业 · 在校生 / 求职实习",
-    desc: "聚焦公有云运维方向(阿里云 / 腾讯云),踏实动手,目标毕业后扎根珠三角,1-2 年内成长为公有云高级运维 / 云架构实施工程师,稳定月薪 12-18k。",
-    email: "227003310@qq.com",
-    github: "Zzy-six",
-    edu: ["2024 - 2027 · 广东碧桂园职业学院 · 云计算技术应用专业(2027 年 6 月毕业)"],
-    certs: ["CSDN C1 / C2 / C4 认证(已获)", "阿里云 ACA 云计算助理工程师(备考中)"],
+    name: "你的名字",
+    role: "你的专业 · 在校生 / 求职实习",
+    desc: "在这里写下你的个人简介,比如你的学习方向、职业目标、技能特长等。所有人默认看到的是这个模板,点击 ✏️ 编辑即可修改为你自己的信息。",
+    email: "你的邮箱",
+    github: "你的GitHub",
+    edu: ["学校名称 · 专业 · 入学年份-毕业年份"],
+    certs: ["已获证书1", "备考证书1"],
     jobs: [
-        "实习方向:云运维实习生 / 云实施助理 / 阿里云代理商技术支持 / 容器运维助理",
-        "投递区域:东莞松山湖 · 广州白云 IT 服务商 · 云渠道代理商",
-        "发展路径:实习 → 毕业 1-2 年:公有云高级运维 / 云架构实施 / 政企数通工程师",
-        "目标薪资:12-18k(珠三角常态)",
+        "实习方向:你想投递的岗位",
+        "投递区域:目标城市/地区",
+        "发展路径:短期 → 中期 → 长期目标",
+        "目标薪资:期望薪资范围",
     ],
 };
 
@@ -427,6 +446,41 @@ function renderEditButtons() {
         item.appendChild(btn);
     });
 
+    // 技能条目编辑
+    document.querySelectorAll(".skill-item").forEach((item, idx) => {
+        const btn = editBtn("✏️", () => editSkillItem(idx));
+        btn.style.top = "4px";
+        btn.style.right = "4px";
+        btn.style.width = "22px";
+        btn.style.height = "22px";
+        btn.style.fontSize = "11px";
+        item.appendChild(btn);
+    });
+
+    // section 描述编辑
+    document.querySelectorAll(".section-desc").forEach((el) => {
+        el.style.position = "relative";
+        const btn = editBtn("✏️", () => editSectionDesc(el));
+        btn.style.top = "4px";
+        btn.style.right = "4px";
+        btn.style.width = "22px";
+        btn.style.height = "22px";
+        btn.style.fontSize = "11px";
+        btn.style.background = "#8b5cf6";
+        el.appendChild(btn);
+    });
+
+    // Hero 区编辑
+    const heroSection = document.querySelector(".hero-content");
+    if (heroSection && !heroSection.querySelector(".edit-btn")) {
+        const btn = editBtn("✏️ 编辑", editHero);
+        btn.style.position = "absolute";
+        btn.style.top = "20px";
+        btn.style.right = "20px";
+        btn.style.background = "#ec4899";
+        heroSection.appendChild(btn);
+    }
+
     // 添加新项目按钮
     const projectGrid = document.getElementById("projectGrid");
     if (projectGrid && !document.getElementById("addProjectBtn")) {
@@ -437,6 +491,41 @@ function renderEditButtons() {
         addBtn.onclick = () => editProject(-1);
         projectGrid.parentElement.appendChild(addBtn);
     }
+
+    // 添加新技能分类按钮
+    const skillContainer = document.getElementById("skillCategories");
+    if (skillContainer && !document.getElementById("addSkillCategoryBtn")) {
+        const addBtn = document.createElement("button");
+        addBtn.id = "addSkillCategoryBtn";
+        addBtn.className = "edit-btn add-btn";
+        addBtn.textContent = "➕ 添加新技能分类";
+        addBtn.onclick = () => editSkillCategory(-1);
+        skillContainer.parentElement.appendChild(addBtn);
+    }
+
+    // 添加新阶段按钮
+    const roadmapContainer = document.getElementById("roadmapTimeline");
+    if (roadmapContainer && !document.getElementById("addRoadmapBtn")) {
+        const addBtn = document.createElement("button");
+        addBtn.id = "addRoadmapBtn";
+        addBtn.className = "edit-btn add-btn";
+        addBtn.textContent = "➕ 添加新阶段";
+        addBtn.onclick = () => editRoadmapStage(-1);
+        roadmapContainer.parentElement.appendChild(addBtn);
+    }
+
+    // 让 section 标题可编辑
+    document.querySelectorAll(".section-title").forEach((title) => {
+        title.style.position = "relative";
+        const btn = editBtn("✏️", () => editSectionTitle(title));
+        btn.style.top = "0";
+        btn.style.right = "0";
+        btn.style.width = "20px";
+        btn.style.height = "20px";
+        btn.style.fontSize = "10px";
+        btn.style.background = "#06b6d4";
+        title.appendChild(btn);
+    });
 }
 
 // ===== 编辑弹窗 =====
@@ -679,6 +768,96 @@ function editResourceItem(idx) {
         saveEditableData("resources", resources);
         renderResourceList();
         showToast("资源已更新");
+    });
+}
+
+// ===== 编辑:技能条目 =====
+function editSkillItem(idx) {
+    const skills = getSkills();
+    let found = null;
+    let catIdx = -1;
+    let skillIdx = -1;
+
+    let globalIdx = 0;
+    for (let ci = 0; ci < skills.length; ci++) {
+        for (let si = 0; si < skills[ci].skills.length; si++) {
+            if (globalIdx === idx) {
+                found = skills[ci].skills[si];
+                catIdx = ci;
+                skillIdx = si;
+                break;
+            }
+            globalIdx++;
+        }
+        if (found) break;
+    }
+    if (!found) return;
+
+    openEditModal("编辑技能", [
+        { key: "name", label: "技能名称", value: found.name },
+        { key: "desc", label: "技能描述", type: "textarea", value: found.desc },
+    ], (values) => {
+        skills[catIdx].skills[skillIdx] = { ...found, ...values };
+        editableSkills = skills;
+        saveEditableData("skills", skills);
+        renderSkills();
+        showToast("技能已更新");
+    });
+}
+
+// ===== 编辑:section描述 =====
+function editSectionDesc(el) {
+    const key = el.dataset.editKey || el.textContent.trim().substring(0, 30);
+    const saved = localStorage.getItem("cloud_workstation_desc_" + key);
+    const current = saved || el.textContent;
+
+    openEditModal("编辑描述文字", [
+        { key: "text", label: "描述内容", type: "textarea", value: current },
+    ], (values) => {
+        el.textContent = values.text;
+        localStorage.setItem("cloud_workstation_desc_" + key, values.text);
+        showToast("描述已更新");
+    });
+}
+
+// ===== 编辑:Hero区 =====
+function editHero() {
+    const titleEl = document.querySelector(".hero h1");
+    const subtitleEl = document.querySelector(".hero-subtitle");
+
+    const savedTitle = localStorage.getItem("cloud_workstation_hero_title") || titleEl.textContent;
+    const savedSubtitle = localStorage.getItem("cloud_workstation_hero_subtitle") || subtitleEl.textContent;
+
+    openEditModal("编辑首页标题", [
+        { key: "title", label: "主标题", value: savedTitle },
+        { key: "subtitle", label: "副标题", type: "textarea", value: savedSubtitle },
+    ], (values) => {
+        titleEl.textContent = values.title;
+        subtitleEl.textContent = values.subtitle;
+        localStorage.setItem("cloud_workstation_hero_title", values.title);
+        localStorage.setItem("cloud_workstation_hero_subtitle", values.subtitle);
+        showToast("首页已更新");
+    });
+}
+
+// ===== 编辑:section标题 =====
+function editSectionTitle(el) {
+    const key = el.dataset.editKey || el.textContent.trim().substring(0, 30);
+    const saved = localStorage.getItem("cloud_workstation_title_" + key);
+    const current = saved || el.childNodes[el.childNodes.length - 1].textContent.trim();
+
+    openEditModal("编辑标题", [
+        { key: "text", label: "标题文字", value: current },
+    ], (values) => {
+        // 保留图标,只替换文字
+        const iconMatch = current.match(/^[\u{1F300}-\u{1F9FF}🔧🗺️📦📚💬👤📊⚙️]+/u);
+        if (iconMatch) {
+            el.childNodes[el.childNodes.length - 1].textContent = " " + values.text;
+        } else {
+            el.childNodes[el.childNodes.length - 1].textContent = values.text;
+        }
+        localStorage.setItem("cloud_workstation_title_" + key, values.text);
+        showToast("标题已更新");
     });
 }
 
