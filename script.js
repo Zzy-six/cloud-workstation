@@ -1,5 +1,5 @@
 // ===== 版本号 =====
-const APP_VERSION = "2.4.0";
+const APP_VERSION = "2.5.0";
 const APP_VERSION_KEY = "cloud_workstation_version";
 const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000; // 5分钟检查一次
 const LAST_UPDATE_CHECK_KEY = "cloud_workstation_last_check";
@@ -358,7 +358,10 @@ const DEFAULT_ABOUT = {
         { icon: "🐙", label: "GitHub", value: "你的GitHub", type: "link", urlPrefix: "https://github.com/" },
     ],
     edu: ["学校名称 · 专业 · 入学年份-毕业年份"],
-    certs: ["已获证书1", "备考证书1"],
+    certs: [
+        { text: "已获证书1", image: "" },
+        { text: "备考证书1", image: "" }
+    ],
     jobs: [
         "实习方向:你想投递的岗位",
         "投递区域:目标城市/地区",
@@ -774,7 +777,7 @@ function renderAbout() {
 
     // 渲染列表（支持编辑模式）
     renderResumeList("eduList", about.edu, "edu");
-    renderResumeList("certList", about.certs, "certs");
+    renderCertList("certList", about.certs);
     renderResumeList("jobList", about.jobs, "jobs");
 }
 
@@ -982,6 +985,257 @@ function addResumeItem(key) {
         renderAbout();
         showToast("已添加");
     });
+}
+
+// ===== 渲染证书列表（支持图片）=====
+function renderCertList(listId, certs) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+
+    // 数据迁移：兼容旧的字符串格式
+    const normalizedCerts = certs.map(c => {
+        if (typeof c === "string") {
+            return { text: c, image: "" };
+        }
+        return c;
+    });
+
+    if (editMode) {
+        list.innerHTML = normalizedCerts.map((cert, idx) => `
+            <li class="editable-list-item cert-item" data-idx="${idx}">
+                <div class="cert-content">
+                    <span class="item-text">${escapeHtml(cert.text)}</span>
+                    ${cert.image ? `<div class="cert-thumb" onclick="previewCertImage(${idx})"><img src="${cert.image}" alt="${escapeHtml(cert.text)}"><span class="cert-zoom">🔍</span></div>` : '<div class="cert-thumb cert-empty">📷</div>'}
+                </div>
+                <div class="item-actions">
+                    <button class="item-btn" onclick="editCertItem(${idx})" title="编辑">✏️</button>
+                    <button class="item-btn" onclick="deleteCertItem(${idx})" title="删除">🗑️</button>
+                </div>
+            </li>
+        `).join("");
+
+        // 添加"新增证书"按钮
+        const existingAddBtn = list.parentElement.querySelector(".add-list-btn[data-key='certs']");
+        if (!existingAddBtn) {
+            const addBtn = document.createElement("button");
+            addBtn.className = "add-list-btn";
+            addBtn.dataset.key = "certs";
+            addBtn.textContent = "➕ 添加证书";
+            addBtn.onclick = () => addCertItem();
+            list.parentElement.appendChild(addBtn);
+        }
+    } else {
+        list.innerHTML = normalizedCerts.map((cert) => `
+            <li class="cert-item">
+                <div class="cert-content">
+                    <span class="item-text">${escapeHtml(cert.text)}</span>
+                    ${cert.image ? `<div class="cert-thumb" onclick="previewCertImage(${normalizedCerts.indexOf(cert)})"><img src="${cert.image}" alt="${escapeHtml(cert.text)}"><span class="cert-zoom">🔍</span></div>` : ''}
+                </div>
+            </li>
+        `).join("");
+        
+        const addBtn = list.parentElement.querySelector(".add-list-btn[data-key='certs']");
+        if (addBtn) addBtn.remove();
+    }
+}
+
+// ===== 编辑证书条目 =====
+function editCertItem(idx) {
+    const about = getAbout() || { ...DEFAULT_ABOUT };
+    // 数据迁移兼容
+    const cert = typeof about.certs[idx] === "string" 
+        ? { text: about.certs[idx], image: "" } 
+        : about.certs[idx];
+
+    openEditModal("编辑证书", [
+        { key: "text", label: "证书名称", value: cert.text },
+        { key: "image", label: "证书图片链接(URL,可选)", value: cert.image || "" },
+    ], (values) => {
+        about.certs[idx] = {
+            text: values.text,
+            image: values.image || "",
+        };
+        editableAbout = { ...about };
+        saveEditableData("about", editableAbout);
+        renderAbout();
+        showToast("证书已更新");
+    });
+    
+    // 添加图片上传按钮
+    setTimeout(() => {
+        const modal = document.querySelector(".modal");
+        if (!modal) return;
+        
+        const imageInput = document.createElement("div");
+        imageInput.className = "edit-field image-upload-field";
+        imageInput.innerHTML = `
+            <label>上传证书图片(可选)</label>
+            <div class="image-upload-area" id="certImageUpload">
+                ${cert.image ? `<img src="${cert.image}" class="upload-preview" alt="预览">` : '<span class="upload-placeholder">📷 点击上传图片</span>'}
+                <input type="file" accept="image/*" id="certImageInput" hidden>
+            </div>
+            <p class="upload-hint">支持 JPG/PNG,建议不超过 2MB</p>
+        `;
+        
+        const modalBody = modal.querySelector(".modal-body");
+        if (modalBody) {
+            modalBody.appendChild(imageInput);
+            
+            const uploadArea = imageInput.querySelector("#certImageUpload");
+            const fileInput = imageInput.querySelector("#certImageInput");
+            
+            uploadArea.onclick = () => fileInput.click();
+            
+            fileInput.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                if (file.size > 2 * 1024 * 1024) {
+                    showToast("图片太大,请选择不超过 2MB 的图片");
+                    return;
+                }
+                
+                try {
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        const imageData = event.target.result;
+                        
+                        // 更新输入框的值
+                        const imageField = modalBody.querySelector('input[data-field="1"]');
+                        if (imageField) {
+                            imageField.value = imageData;
+                        }
+                        
+                        // 更新预览
+                        uploadArea.innerHTML = `<img src="${imageData}" class="upload-preview" alt="预览"><span class="upload-success">✅ 已上传</span>`;
+                        
+                        showToast("图片上传成功");
+                    };
+                    reader.readAsDataURL(file);
+                } catch (err) {
+                    showToast("图片上传失败");
+                }
+            };
+        }
+    }, 50);
+}
+
+// ===== 删除证书条目 =====
+function deleteCertItem(idx) {
+    const about = getAbout() || { ...DEFAULT_ABOUT };
+    if (!confirm("确定删除该证书吗？")) return;
+    about.certs.splice(idx, 1);
+    editableAbout = { ...about };
+    saveEditableData("about", editableAbout);
+    renderAbout();
+    showToast("已删除");
+}
+
+// ===== 添加证书条目 =====
+function addCertItem() {
+    const about = getAbout() || { ...DEFAULT_ABOUT };
+    if (!about.certs || !Array.isArray(about.certs)) about.certs = [];
+    
+    openEditModal("添加证书", [
+        { key: "text", label: "证书名称", value: "" },
+        { key: "image", label: "证书图片链接(URL,可选)", value: "" },
+    ], (values) => {
+        about.certs.push({
+            text: values.text,
+            image: values.image || "",
+        });
+        editableAbout = { ...about };
+        saveEditableData("about", editableAbout);
+        renderAbout();
+        showToast("已添加证书");
+    });
+    
+    // 添加图片上传按钮
+    setTimeout(() => {
+        const modal = document.querySelector(".modal");
+        if (!modal) return;
+        
+        const imageInput = document.createElement("div");
+        imageInput.className = "edit-field image-upload-field";
+        imageInput.innerHTML = `
+            <label>上传证书图片(可选)</label>
+            <div class="image-upload-area" id="certImageUpload">
+                <span class="upload-placeholder">📷 点击上传图片</span>
+                <input type="file" accept="image/*" id="certImageInput" hidden>
+            </div>
+            <p class="upload-hint">支持 JPG/PNG,建议不超过 2MB</p>
+        `;
+        
+        const modalBody = modal.querySelector(".modal-body");
+        if (modalBody) {
+            modalBody.appendChild(imageInput);
+            
+            const uploadArea = imageInput.querySelector("#certImageUpload");
+            const fileInput = imageInput.querySelector("#certImageInput");
+            
+            uploadArea.onclick = () => fileInput.click();
+            
+            fileInput.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                if (file.size > 2 * 1024 * 1024) {
+                    showToast("图片太大,请选择不超过 2MB 的图片");
+                    return;
+                }
+                
+                try {
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        const imageData = event.target.result;
+                        
+                        // 更新图片链接输入框的值
+                        const imageField = modalBody.querySelector('input[data-field="1"]');
+                        if (imageField) {
+                            imageField.value = imageData;
+                        }
+                        
+                        // 更新预览
+                        uploadArea.innerHTML = `<img src="${imageData}" class="upload-preview" alt="预览"><span class="upload-success">✅ 已上传</span>`;
+                        
+                        showToast("图片上传成功");
+                    };
+                    reader.readAsDataURL(file);
+                } catch (err) {
+                    showToast("图片上传失败");
+                }
+            };
+        }
+    }, 50);
+}
+
+// ===== 预览证书图片 =====
+function previewCertImage(idx) {
+    const about = getAbout() || { ...DEFAULT_ABOUT };
+    const cert = about.certs[idx];
+    if (!cert || !cert.image) return;
+    
+    // 检查是否已存在预览弹窗
+    let preview = document.getElementById("certImagePreview");
+    if (preview) {
+        preview.remove();
+    }
+    
+    preview = document.createElement("div");
+    preview.id = "certImagePreview";
+    preview.className = "image-preview-overlay";
+    preview.innerHTML = `
+        <div class="image-preview-modal">
+            <button class="image-preview-close" id="previewClose">×</button>
+            <img src="${cert.image}" alt="${escapeHtml(cert.text)}" class="image-preview-img">
+            <div class="image-preview-caption">${escapeHtml(cert.text)}</div>
+        </div>
+    `;
+    document.body.appendChild(preview);
+    
+    const close = () => preview.remove();
+    preview.onclick = (e) => { if (e.target === preview) close(); };
+    preview.querySelector("#previewClose").onclick = close;
 }
 
 // HTML 转义
