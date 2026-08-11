@@ -1,5 +1,5 @@
 // ===== 版本号 =====
-const APP_VERSION = "2.6.1";
+const APP_VERSION = "2.6.2";
 const APP_VERSION_KEY = "cloud_workstation_version";
 const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000; // 5分钟检查一次
 const LAST_UPDATE_CHECK_KEY = "cloud_workstation_last_check";
@@ -721,10 +721,8 @@ function renderAbout() {
     // 头像显示（支持 emoji 和图片）
     const avatarData = about.avatar || "👤";
     if (avatarData.startsWith("data:image") || avatarData.startsWith("http")) {
-        // 图片头像
         avatarEl.innerHTML = `<img src="${avatarData}" alt="头像" class="avatar-img">`;
     } else {
-        // emoji 头像
         avatarEl.textContent = avatarData;
     }
 
@@ -734,18 +732,14 @@ function renderAbout() {
         makeInlineEditable(roleEl, "role", "职位/身份");
         makeInlineEditable(descEl, "desc", "个人简介", true);
         
-        // 头像编辑
-        if (avatarEl && !avatarEl.querySelector(".avatar-edit-btn")) {
-            const editBtn = document.createElement("button");
-            editBtn.className = "avatar-edit-btn";
-            editBtn.title = "点击更换头像";
-            editBtn.textContent = "✏️";
-            editBtn.onclick = (e) => {
+        // 头像编辑 - 直接点击头像打开编辑器
+        if (avatarEl) {
+            avatarEl.onclick = (e) => {
                 e.stopPropagation();
-                openAvatarEditor(about);
+                openAvatarEditor();
             };
-            avatarEl.appendChild(editBtn);
             avatarEl.style.cursor = "pointer";
+            avatarEl.title = "点击更换头像";
         }
         
         // 添加联系字段按钮
@@ -765,8 +759,8 @@ function renderAbout() {
         });
         if (avatarEl) {
             avatarEl.style.cursor = "";
-            const btn = avatarEl.querySelector(".avatar-edit-btn");
-            if (btn) btn.remove();
+            avatarEl.onclick = null;
+            avatarEl.title = "";
         }
         // 移除添加按钮
         const addBtn = contactsContainer.parentElement.querySelector(".add-contact-btn");
@@ -780,17 +774,19 @@ function renderAbout() {
 }
 
 // ===== 头像编辑器 =====
-function openAvatarEditor(about) {
+function openAvatarEditor() {
+    const about = getAbout() || DEFAULT_ABOUT;
     const currentAvatar = about.avatar || "👤";
     const isImage = currentAvatar.startsWith("data:image") || currentAvatar.startsWith("http");
     
     const modal = document.createElement("div");
-    modal.className = "modal avatar-editor-modal";
+    modal.className = "modal active";
+    modal.id = "avatarEditorModal";
     modal.innerHTML = `
         <div class="modal-content">
             <div class="modal-header">
                 <h3>更换头像</h3>
-                <button class="modal-close">×</button>
+                <button class="modal-close" data-close>×</button>
             </div>
             <div class="modal-body">
                 <!-- 当前头像预览 -->
@@ -814,16 +810,16 @@ function openAvatarEditor(about) {
                         <button type="button" class="upload-action-btn" id="avatarFileBtn">
                             🖼️ 选择图片
                         </button>
-                        <input type="file" accept="image/*" capture="environment" id="avatarCameraInput" hidden>
-                        <input type="file" accept="image/*" id="avatarFileInput" hidden>
                     </div>
+                    <input type="file" accept="image/*" capture="environment" id="avatarCameraInput" style="display:none">
+                    <input type="file" accept="image/*" id="avatarFileInput" style="display:none">
                     <p class="upload-hint">支持 JPG/PNG,建议不超过 2MB</p>
                 </div>
                 
                 <!-- 或使用 emoji -->
                 <div class="avatar-emoji-section">
                     <label>或使用 emoji</label>
-                    <input type="text" id="avatarEmojiInput" placeholder="输入 emoji,如:👤😎🤓" value="${isImage ? '' : escapeHtml(currentAvatar)}" maxlength="10">
+                    <input type="text" id="avatarEmojiInput" placeholder="输入 emoji,如:👤😎🤓" maxlength="10">
                     <div class="emoji-quick-pick">
                         <button type="button" class="emoji-btn" data-emoji="👤">👤</button>
                         <button type="button" class="emoji-btn" data-emoji="😎">😎</button>
@@ -836,21 +832,26 @@ function openAvatarEditor(about) {
                     </div>
                 </div>
             </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" id="avatarCancel">取消</button>
-                <button class="btn btn-primary" id="avatarSave" disabled>保存</button>
+            <div class="modal-footer">
+                <button class="btn-secondary" data-cancel>取消</button>
+                <button class="btn-primary" id="avatarSaveBtn" disabled>保存</button>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
     
-    const close = () => modal.remove();
-    modal.querySelector(".modal-close").onclick = close;
-    modal.querySelector("#avatarCancel").onclick = close;
+    const close = () => {
+        modal.remove();
+        document.removeEventListener("keydown", avatarEscHandler);
+    };
+    const avatarEscHandler = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", avatarEscHandler);
+    
+    modal.querySelectorAll("[data-close], [data-cancel]").forEach(el => el.onclick = close);
     modal.onclick = (e) => { if (e.target === modal) close(); };
     
     const preview = modal.querySelector("#avatarPreview");
-    const saveBtn = modal.querySelector("#avatarSave");
+    const saveBtn = modal.querySelector("#avatarSaveBtn");
     let newAvatar = null;
     
     const updatePreview = (html, canSave) => {
@@ -860,11 +861,13 @@ function openAvatarEditor(about) {
     
     // 处理图片上传
     const handleFile = (e) => {
+        e.stopPropagation();
         const file = e.target.files[0];
         if (!file) return;
         
         if (file.size > 2 * 1024 * 1024) {
             showToast("图片太大,请选择不超过 2MB 的图片");
+            e.target.value = "";
             return;
         }
         
@@ -879,12 +882,18 @@ function openAvatarEditor(about) {
         } catch (err) {
             showToast("图片上传失败");
         }
+        e.target.value = ""; // 重置，允许重复选择同一文件
     };
     
-    modal.querySelector("#avatarCameraBtn").onclick = () => modal.querySelector("#avatarCameraInput").click();
-    modal.querySelector("#avatarFileBtn").onclick = () => modal.querySelector("#avatarFileInput").click();
-    modal.querySelector("#avatarCameraInput").onchange = handleFile;
-    modal.querySelector("#avatarFileInput").onchange = handleFile;
+    const cameraBtn = modal.querySelector("#avatarCameraBtn");
+    const fileBtn = modal.querySelector("#avatarFileBtn");
+    const cameraInput = modal.querySelector("#avatarCameraInput");
+    const fileInput = modal.querySelector("#avatarFileInput");
+    
+    cameraBtn.onclick = (e) => { e.stopPropagation(); cameraInput.click(); };
+    fileBtn.onclick = (e) => { e.stopPropagation(); fileInput.click(); };
+    cameraInput.onchange = handleFile;
+    fileInput.onchange = handleFile;
     
     // emoji 快捷选择
     const emojiInput = modal.querySelector("#avatarEmojiInput");
@@ -1179,96 +1188,112 @@ function renderCertList(listId, certs) {
 // ===== 编辑证书条目 =====
 function editCertItem(idx) {
     const about = getAbout() || { ...DEFAULT_ABOUT };
-    // 数据迁移兼容
     const cert = typeof about.certs[idx] === "string" 
         ? { text: about.certs[idx], image: "" } 
         : about.certs[idx];
 
-    openEditModal("编辑证书", [
-        { key: "text", label: "证书名称", value: cert.text },
-        { key: "image", label: "证书图片链接(URL,可选)", value: cert.image || "" },
-    ], (values) => {
-        about.certs[idx] = {
-            text: values.text,
-            image: values.image || "",
-        };
+    // 创建自定义弹窗
+    const modal = document.createElement("div");
+    modal.className = "modal active";
+    modal.id = "certEditModal";
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>编辑证书</h3>
+                <button class="modal-close" data-close>×</button>
+            </div>
+            <div class="modal-body">
+                <div class="edit-field">
+                    <label>证书名称</label>
+                    <input type="text" id="certTextInput" value="${escapeHtml(cert.text)}">
+                </div>
+                
+                <div class="edit-field image-upload-field">
+                    <label>上传证书图片(可选)</label>
+                    <div class="image-upload-area" id="certImageUpload">
+                        ${cert.image ? `<img src="${cert.image}" class="upload-preview" alt="预览">` : '<span class="upload-placeholder">📷 点击上传图片</span>'}
+                    </div>
+                    <div class="upload-actions">
+                        <button type="button" class="upload-action-btn" id="certCameraBtn">📸 拍照</button>
+                        <button type="button" class="upload-action-btn" id="certFileBtn">🖼️ 选择图片</button>
+                    </div>
+                    <p class="upload-hint">支持 JPG/PNG,建议不超过 2MB</p>
+                    <input type="file" accept="image/*" capture="environment" id="certCameraInput" style="display:none">
+                    <input type="file" accept="image/*" id="certFileInput" style="display:none">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" data-cancel>取消</button>
+                <button class="btn-primary" id="certSaveBtn">保存</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const close = () => {
+        modal.remove();
+        document.removeEventListener("keydown", certEscHandler);
+    };
+    const certEscHandler = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", certEscHandler);
+    
+    modal.querySelectorAll("[data-close], [data-cancel]").forEach(el => el.onclick = close);
+    modal.onclick = (e) => { if (e.target === modal) close(); };
+    
+    const textInput = modal.querySelector("#certTextInput");
+    const uploadArea = modal.querySelector("#certImageUpload");
+    const cameraBtn = modal.querySelector("#certCameraBtn");
+    const fileBtn = modal.querySelector("#certFileBtn");
+    const cameraInput = modal.querySelector("#certCameraInput");
+    const fileInput = modal.querySelector("#certFileInput");
+    const saveBtn = modal.querySelector("#certSaveBtn");
+    
+    let imageData = cert.image || "";
+    
+    const handleFile = (e) => {
+        e.stopPropagation();
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        if (file.size > 2 * 1024 * 1024) {
+            showToast("图片太大,请选择不超过 2MB 的图片");
+            e.target.value = "";
+            return;
+        }
+        
+        try {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                imageData = event.target.result;
+                uploadArea.innerHTML = `<img src="${imageData}" class="upload-preview" alt="预览"><span class="upload-success">✅ 已上传</span>`;
+                showToast("图片上传成功");
+            };
+            reader.readAsDataURL(file);
+        } catch (err) {
+            showToast("图片上传失败");
+        }
+        e.target.value = "";
+    };
+    
+    uploadArea.onclick = () => fileInput.click();
+    cameraBtn.onclick = (e) => { e.stopPropagation(); cameraInput.click(); };
+    fileBtn.onclick = (e) => { e.stopPropagation(); fileInput.click(); };
+    cameraInput.onchange = handleFile;
+    fileInput.onchange = handleFile;
+    
+    saveBtn.onclick = () => {
+        const text = textInput.value.trim();
+        if (!text) {
+            showToast("请输入证书名称");
+            return;
+        }
+        about.certs[idx] = { text, image: imageData };
         editableAbout = { ...about };
         saveEditableData("about", editableAbout);
+        close();
         renderAbout();
         showToast("证书已更新");
-    });
-    
-    // 添加图片上传按钮
-    setTimeout(() => {
-        const modal = document.querySelector(".modal");
-        if (!modal) return;
-        
-        const imageInput = document.createElement("div");
-        imageInput.className = "edit-field image-upload-field";
-        imageInput.innerHTML = `
-            <label>上传证书图片(可选)</label>
-            <div class="image-upload-area" id="certImageUpload">
-                ${cert.image ? `<img src="${cert.image}" class="upload-preview" alt="预览">` : '<span class="upload-placeholder">📷 点击上传图片</span>'}
-            </div>
-            <div class="upload-actions">
-                <button type="button" class="upload-action-btn" id="uploadCameraBtn">📸 拍照</button>
-                <button type="button" class="upload-action-btn" id="uploadFileBtn">🖼️ 选择图片</button>
-                <input type="file" accept="image/*" capture="environment" id="certCameraInput" hidden>
-                <input type="file" accept="image/*" id="certFileInput" hidden>
-            </div>
-            <p class="upload-hint">支持 JPG/PNG,建议不超过 2MB</p>
-        `;
-        
-        const modalBody = modal.querySelector(".modal-body");
-        if (modalBody) {
-            modalBody.appendChild(imageInput);
-            
-            const uploadArea = imageInput.querySelector("#certImageUpload");
-            const cameraInput = imageInput.querySelector("#certCameraInput");
-            const fileInput = imageInput.querySelector("#certFileInput");
-            const cameraBtn = imageInput.querySelector("#uploadCameraBtn");
-            const fileBtn = imageInput.querySelector("#uploadFileBtn");
-            
-            // 点击上传区域
-            uploadArea.onclick = () => fileInput.click();
-            cameraBtn.onclick = () => cameraInput.click();
-            fileBtn.onclick = () => fileInput.click();
-            
-            const handleFile = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                if (file.size > 2 * 1024 * 1024) {
-                    showToast("图片太大,请选择不超过 2MB 的图片");
-                    return;
-                }
-                
-                try {
-                    const reader = new FileReader();
-                    reader.onload = async (event) => {
-                        const imageData = event.target.result;
-                        
-                        // 更新输入框的值
-                        const imageField = modalBody.querySelector('input[data-field="1"]');
-                        if (imageField) {
-                            imageField.value = imageData;
-                        }
-                        
-                        // 更新预览
-                        uploadArea.innerHTML = `<img src="${imageData}" class="upload-preview" alt="预览"><span class="upload-success">✅ 已上传</span>`;
-                        
-                        showToast("图片上传成功");
-                    };
-                    reader.readAsDataURL(file);
-                } catch (err) {
-                    showToast("图片上传失败");
-                }
-            };
-            
-            cameraInput.onchange = handleFile;
-            fileInput.onchange = handleFile;
-        }
-    }, 50);
+    };
 }
 
 // ===== 删除证书条目 =====
@@ -1287,91 +1312,111 @@ function addCertItem() {
     const about = getAbout() || { ...DEFAULT_ABOUT };
     if (!about.certs || !Array.isArray(about.certs)) about.certs = [];
     
-    openEditModal("添加证书", [
-        { key: "text", label: "证书名称", value: "" },
-        { key: "image", label: "证书图片链接(URL,可选)", value: "" },
-    ], (values) => {
-        about.certs.push({
-            text: values.text,
-            image: values.image || "",
-        });
+    // 创建自定义弹窗
+    const modal = document.createElement("div");
+    modal.className = "modal active";
+    modal.id = "certAddModal";
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>添加证书</h3>
+                <button class="modal-close" data-close>×</button>
+            </div>
+            <div class="modal-body">
+                <div class="edit-field">
+                    <label>证书名称</label>
+                    <input type="text" id="certTextInput" placeholder="例如: AWS Solutions Architect">
+                </div>
+                
+                <div class="edit-field image-upload-field">
+                    <label>上传证书图片(可选)</label>
+                    <div class="image-upload-area" id="certImageUpload">
+                        <span class="upload-placeholder">📷 点击上传图片</span>
+                    </div>
+                    <div class="upload-actions">
+                        <button type="button" class="upload-action-btn" id="certCameraBtn">📸 拍照</button>
+                        <button type="button" class="upload-action-btn" id="certFileBtn">🖼️ 选择图片</button>
+                    </div>
+                    <p class="upload-hint">支持 JPG/PNG,建议不超过 2MB</p>
+                    <input type="file" accept="image/*" capture="environment" id="certCameraInput" style="display:none">
+                    <input type="file" accept="image/*" id="certFileInput" style="display:none">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" data-cancel>取消</button>
+                <button class="btn-primary" id="certSaveBtn">保存</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const close = () => {
+        modal.remove();
+        document.removeEventListener("keydown", certEscHandler);
+    };
+    const certEscHandler = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", certEscHandler);
+    
+    modal.querySelectorAll("[data-close], [data-cancel]").forEach(el => el.onclick = close);
+    modal.onclick = (e) => { if (e.target === modal) close(); };
+    
+    const textInput = modal.querySelector("#certTextInput");
+    const uploadArea = modal.querySelector("#certImageUpload");
+    const cameraBtn = modal.querySelector("#certCameraBtn");
+    const fileBtn = modal.querySelector("#certFileBtn");
+    const cameraInput = modal.querySelector("#certCameraInput");
+    const fileInput = modal.querySelector("#certFileInput");
+    const saveBtn = modal.querySelector("#certSaveBtn");
+    
+    let imageData = "";
+    
+    const handleFile = (e) => {
+        e.stopPropagation();
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        if (file.size > 2 * 1024 * 1024) {
+            showToast("图片太大,请选择不超过 2MB 的图片");
+            e.target.value = "";
+            return;
+        }
+        
+        try {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                imageData = event.target.result;
+                uploadArea.innerHTML = `<img src="${imageData}" class="upload-preview" alt="预览"><span class="upload-success">✅ 已上传</span>`;
+                showToast("图片上传成功");
+            };
+            reader.readAsDataURL(file);
+        } catch (err) {
+            showToast("图片上传失败");
+        }
+        e.target.value = "";
+    };
+    
+    uploadArea.onclick = () => fileInput.click();
+    cameraBtn.onclick = (e) => { e.stopPropagation(); cameraInput.click(); };
+    fileBtn.onclick = (e) => { e.stopPropagation(); fileInput.click(); };
+    cameraInput.onchange = handleFile;
+    fileInput.onchange = handleFile;
+    
+    saveBtn.onclick = () => {
+        const text = textInput.value.trim();
+        if (!text) {
+            showToast("请输入证书名称");
+            return;
+        }
+        about.certs.push({ text, image: imageData });
         editableAbout = { ...about };
         saveEditableData("about", editableAbout);
+        close();
         renderAbout();
         showToast("已添加证书");
-    });
+    };
     
-    // 添加图片上传按钮
-    setTimeout(() => {
-        const modal = document.querySelector(".modal");
-        if (!modal) return;
-        
-        const imageInput = document.createElement("div");
-        imageInput.className = "edit-field image-upload-field";
-        imageInput.innerHTML = `
-            <label>上传证书图片(可选)</label>
-            <div class="image-upload-area" id="certImageUpload">
-                <span class="upload-placeholder">📷 点击上传图片</span>
-            </div>
-            <div class="upload-actions">
-                <button type="button" class="upload-action-btn" id="uploadCameraBtn">📸 拍照</button>
-                <button type="button" class="upload-action-btn" id="uploadFileBtn">🖼️ 选择图片</button>
-                <input type="file" accept="image/*" capture="environment" id="certCameraInput" hidden>
-                <input type="file" accept="image/*" id="certFileInput" hidden>
-            </div>
-            <p class="upload-hint">支持 JPG/PNG,建议不超过 2MB</p>
-        `;
-        
-        const modalBody = modal.querySelector(".modal-body");
-        if (modalBody) {
-            modalBody.appendChild(imageInput);
-            
-            const uploadArea = imageInput.querySelector("#certImageUpload");
-            const cameraInput = imageInput.querySelector("#certCameraInput");
-            const fileInput = imageInput.querySelector("#certFileInput");
-            const cameraBtn = imageInput.querySelector("#uploadCameraBtn");
-            const fileBtn = imageInput.querySelector("#uploadFileBtn");
-            
-            // 点击上传区域
-            uploadArea.onclick = () => fileInput.click();
-            cameraBtn.onclick = () => cameraInput.click();
-            fileBtn.onclick = () => fileInput.click();
-            
-            const handleFile = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                if (file.size > 2 * 1024 * 1024) {
-                    showToast("图片太大,请选择不超过 2MB 的图片");
-                    return;
-                }
-                
-                try {
-                    const reader = new FileReader();
-                    reader.onload = async (event) => {
-                        const imageData = event.target.result;
-                        
-                        // 更新图片链接输入框的值
-                        const imageField = modalBody.querySelector('input[data-field="1"]');
-                        if (imageField) {
-                            imageField.value = imageData;
-                        }
-                        
-                        // 更新预览
-                        uploadArea.innerHTML = `<img src="${imageData}" class="upload-preview" alt="预览"><span class="upload-success">✅ 已上传</span>`;
-                        
-                        showToast("图片上传成功");
-                    };
-                    reader.readAsDataURL(file);
-                } catch (err) {
-                    showToast("图片上传失败");
-                }
-            };
-            
-            cameraInput.onchange = handleFile;
-            fileInput.onchange = handleFile;
-        }
-    }, 50);
+    // 自动聚焦
+    setTimeout(() => textInput.focus(), 100);
 }
 
 // ===== 预览证书图片 =====
